@@ -9,10 +9,6 @@ module.exports = class Snake
     @oldDirection = [1,0]
     @direction = [1,0]
 
-  oroborus: ->
-    # console.log('oroborus? contains on ', @body.slice 1, @body[0])
-    utils(@body.slice 1).contains(@body[0])
-
   move: ->
     @oldDirection = @direction
     @body.unshift @addVector(@body[0], @direction)
@@ -23,22 +19,28 @@ module.exports = class Snake
   eat: ->
     @length += 1
 
+  inform: (grid) =>
+    @grid = grid
+
   directions:
     37: [-1, 0]
     38: [0, -1]
     39: [1, 0]
     40: [0, 1]
 
-  turn: (keyCode) ->
+  canTurn: (keyCode) ->
     newDirection = @directions[keyCode]
-
     return if not newDirection
     return if @sameCoords [0,0], @addVector(newDirection, @oldDirection)
     return if @sameCoords newDirection, @oldDirection
     
-    @direction = newDirection
     true
 
+  turn: (keyCode) ->
+    return if not @canTurn keyCode
+
+    @direction = @directions[keyCode]
+    
 #helpers
   addVector: (position, vector) ->
     [position[0] + vector[0], position[1] + vector[1]]

@@ -1,4 +1,4 @@
-var $document, CIRCLE, FONTS, PAUSE_PROMPTS, clientController,
+var $document, CIRCLE, COLORS, FONTS, PAUSE_PROMPTS, clientController,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
 CIRCLE = Math.PI * 2;
@@ -15,35 +15,45 @@ PAUSE_PROMPTS = {
   other: 'The other player paused the game'
 };
 
+COLORS = {
+  background: '#E6E6C3',
+  players: ['black', 'blue']
+};
+
 clientController = (function() {
   function clientController(socket, id) {
     this.socket = socket;
     this.id = id;
     this.update = __bind(this.update, this);
+    this.state = __bind(this.state, this);
     this.runStep = __bind(this.runStep, this);
     this.bindKeyDown = __bind(this.bindKeyDown, this);
-    this.game = new Game(50);
+    this.game = new Game(50, this.id);
     this.canvas = $('canvas');
     this.context = this.canvas[0].getContext('2d');
-    this.bindKeyDown();
   }
 
-  clientController.prototype.colors = ['black', 'blue'];
+  clientController.prototype.namespace = '.snake';
 
   clientController.prototype.render = function() {
     this.clear();
     this.drawSnakes();
     this.drawScore();
-    return this.drawFood();
+    this.drawFood();
+    if (this.game.open) {
+      return this.drawPractice();
+    }
   };
 
   clientController.prototype.translate = function(pos) {
     return 10 * pos + 5;
   };
 
-  clientController.prototype.drawCircle = function(pos, color) {
+  clientController.prototype.drawCircle = function(pos, color, head) {
+    var radius;
+    radius = head ? 7 : 6;
     this.context.beginPath();
-    this.context.arc(this.translate(pos[0]), this.translate(pos[1]), 5, 0, CIRCLE, false);
+    this.context.arc(this.translate(pos[0]), this.translate(pos[1]), radius, 0, CIRCLE, false);
     this.context.fillStyle = color;
     return this.context.fill();
   };
@@ -52,13 +62,20 @@ clientController = (function() {
     return this.context.clearRect(0, 0, 500, 500);
   };
 
+  clientController.prototype.drawPractice = function() {
+    this.context.font = FONTS.score;
+    this.context.textAlign = "left";
+    this.context.fillStyle = 'orange';
+    return this.context.fillText('Awaiting player - in Practice Mode', 10, 10);
+  };
+
   clientController.prototype.drawSnakes = function() {
     var i, piece, snake, _i, _len, _ref, _results;
     _ref = this.game.snakes;
     _results = [];
     for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
       snake = _ref[i];
-      this.drawCircle(snake.body[0], this.colors[i]);
+      this.drawCircle(snake.body[0], COLORS.players[i], true);
       _results.push((function() {
         var _j, _len1, _ref1, _results1;
         _ref1 = snake.body.slice(1);
@@ -92,65 +109,132 @@ clientController = (function() {
     _results = [];
     for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
       snake = _ref[i];
-      this.context.fillStyle = this.colors[i];
-      _results.push(this.context.fillText("Score: " + snake.length, 435, 15 + (15 * i)));
+      this.context.fillStyle = COLORS.players[i];
+      _results.push(this.context.fillText("Score: " + snake.body.length, 435, 15 + (15 * i)));
     }
     return _results;
   };
 
-  clientController.prototype.drawPrompt = function(text, color) {
+  clientController.prototype.drawPause = function() {
+    return this.drawPrompt(PAUSE_PROMPTS[(this.game.paused === this.id ? 'self' : 'other')], "blue", true);
+  };
+
+  clientController.prototype.incomingPlayer = function(incoming) {
+    var a, dir;
+    this.started = null;
+    a = 0;
+    dir = 1;
+    incoming = (function(_this) {
+      return function() {
+        if (_this.started) {
+          return console.log('starting');
+        }
+        a += dir * 0.05;
+        dir = a >= 1 ? -1 : a <= 0 ? 1 : dir;
+        _this.drawPrompt('Joining new Human vs. Human game', COLORS.background);
+        _this.drawPrompt('Joining new Human vs. Human game', 'rgba(0, 20, 200, ' + a + ')');
+        return setTimeout(incoming, 100);
+      };
+    })(this);
+    return incoming();
+  };
+
+  clientController.prototype.drawPrompt = function(text, color, pause) {
+    var x, y;
+    x = y = this.game.boardSize * 10 / 2;
+    if (pause) {
+      y = 100;
+    }
+    this.context.fillRect('black', x, y, 800, 200);
     this.context.font = FONTS.prompt;
     this.context.textAlign = "center";
-    this.context.fillStyle = color;
-    return this.context.fillText(text, 250, 250);
+    if (color) {
+      this.context.fillStyle = color;
+    }
+    return this.context.fillText(text, x, y);
   };
 
   clientController.prototype.bindKeyDown = function() {
-    return $document.on('keydown', (function(_this) {
+    $document.off(this.namespace);
+    return $document.on('keydown' + this.namespace, (function(_this) {
       return function(event) {
-        var _ref;
-        if ((36 < (_ref = event.keyCode) && _ref < 41) || event.keyCode === 80) {
-          return _this.socket.emit('keypress', event.keyCode, _this.id);
+        var code;
+        code = event.keyCode;
+        if ((36 < code && code < 41) || code === 80 || code === 13) {
+          event.preventDefault();
+          event.stopPropagation();
+          return _this.socket.emit('keypress', code, _this.id);
         }
       };
     })(this));
   };
 
-  clientController.prototype.pause = function(state) {
-    var prompt;
-    this.paused = true;
-    prompt = PAUSE_PROMPTS[(state.paused === this.id ? 'self' : 'other')];
-    return this.drawPrompt(prompt, "blue");
-  };
-
   clientController.prototype.runStep = function() {
-    var loser, prompt;
-    this.render();
-    if (!this.game.over) {
+    var incoming, loser, prompt;
+    if (this.newState) {
+      this.game.update(this.newState);
+      incoming = this.newState.incoming;
+      this.newState = null;
+      if (incoming) {
+        return;
+      }
+    } else {
+      this.game.step();
+    }
+    if (!this.game.endGame) {
+      if (this.game.paused) {
+        return this.drawPause();
+      }
+      this.render();
       return this.runLoop();
     } else {
-      loser = this.game.over.code;
-      prompt = loser === -1 ? "Tie game" : loser === this.id ? "You Lost" : "You Won";
-      this.drawPrompt(prompt + "! >--< Click to Restart.", "red");
-      return this.game.over = null;
+      this.render();
+      loser = this.game.endGame;
+      prompt = (function() {
+        switch (loser) {
+          case -2:
+            return 'Opponent Quit!';
+          case -1:
+            return "Tie game";
+          case this.id:
+            return "You Lost";
+          default:
+            return "You Won";
+        }
+      }).call(this);
+      this.drawPrompt(prompt + "! >--< Press Enter.", "red");
+      return this.game.endGame = null;
     }
   };
 
-  clientController.prototype.update = function(state) {
-    this.game.set(state);
-    if (state.paused) {
-      return this.pause(state);
+  clientController.prototype.newGame = function() {
+    this.bindKeyDown();
+    this.started = true;
+    this.running = true;
+    return this.runStep();
+  };
+
+  clientController.prototype.state = function(state) {
+    this.newState = state;
+    if (state.incoming) {
+      return this.incomingPlayer();
+    }
+    if (state.newGame) {
+      return this.newGame();
+    } else if (this.game.paused) {
+      if (state.endGame || !state.paused) {
+        return this.runStep();
+      }
     }
   };
 
-  clientController.prototype.reset = function() {};
+  clientController.prototype.update = function() {
+    this.game.update(this.newState);
+    return this.newState = null;
+  };
 
   clientController.prototype.runLoop = function() {
-    return window.setTimeout(this.runStep, this.stepTime());
-  };
-
-  clientController.prototype.stepTime = function() {
-    return 100;
+    return this.timeout = window.setTimeout(this.runStep, this.game.stepTime);
   };
 
   return clientController;
@@ -160,16 +244,134 @@ clientController = (function() {
 $document.ready(function() {
   var client, socket;
   client = null;
-  socket = io.connect('http://localhost');
+  socket = io.connect(window.location.origin);
   socket.emit('ready');
-  return socket.on('join-client', (function(_this) {
+  return socket.on('attach-client', (function(_this) {
     return function(id) {
-      console.log(id);
       client = window.client = new clientController(socket, id);
-      socket.on('update-client', client.update);
-      return client.runLoop();
+      return socket.on('update-client', client.state);
     };
   })(this));
+});
+
+var DetailCtrl, HomeCtrl, ListCtrl, MainCtrl, SettingsCtrl;
+
+angular.module('app', ['appServices']).config([
+  '$routeProvider', function($routeProvider) {
+    return $routeProvider.when('/home', {
+      templateUrl: 'home.html',
+      controller: HomeCtrl
+    }).when('/list', {
+      templateUrl: 'list.html',
+      controller: ListCtrl
+    }).when('/detail/:itemId', {
+      templateUrl: 'detail.html',
+      controller: DetailCtrl
+    }).when('/settings', {
+      templateUrl: 'settings.html',
+      controller: SettingsCtrl
+    }).otherwise({
+      redirectTo: '/home'
+    });
+  }
+]);
+
+MainCtrl = function($scope, Page) {
+  console.log(Page);
+  return $scope.page = Page;
+};
+
+HomeCtrl = function($scope, Page) {
+  return Page.setTitle("Welcome");
+};
+
+ListCtrl = function($scope, Page, Model) {
+  Page.setTitle("Items");
+  return $scope.items = Model.notes();
+};
+
+DetailCtrl = function($scope, Page, Model, $routeParams, $location) {
+  var id;
+  Page.setTitle("Detail");
+  id = $scope.itemId = $routeParams.itemId;
+  return $scope.item = Model.get(id);
+};
+
+SettingsCtrl = function($scope, Page) {
+  return Page.setTitle("Settings");
+};
+
+angular.module('appServices', []).factory('Page', function($rootScope) {
+  var page, pageTitle;
+  pageTitle = "Untitled";
+  return page = {
+    title: function() {
+      return pageTitle;
+    },
+    setTitle: function(newTitle) {
+      return pageTitle = newTitle;
+    }
+  };
+}).factory('Model', function() {
+  var data, model;
+  data = [
+    {
+      id: 0,
+      title: 'Doh',
+      detail: "A dear. A female dear."
+    }, {
+      id: 1,
+      title: 'Re',
+      detail: "A drop of golden sun."
+    }, {
+      id: 2,
+      title: 'Me',
+      detail: "A name I call myself."
+    }, {
+      id: 3,
+      title: 'Fa',
+      detail: "A long, long way to run."
+    }, {
+      id: 4,
+      title: 'So',
+      detail: "A needle pulling thread."
+    }, {
+      id: 5,
+      title: 'La',
+      detail: "A note to follow So."
+    }, {
+      id: 6,
+      title: 'Tee',
+      detail: "A drink with jam and bread."
+    }
+  ];
+  return model = {
+    notes: function() {
+      return data;
+    },
+    get: function(id) {
+      return data[id];
+    },
+    add: function(note) {
+      var currentIndex;
+      currentIndex = data.length;
+      return data.push({
+        id: currentIndex,
+        title: note.title,
+        detail: note.detail
+      });
+    },
+    "delete": function(id) {
+      var oldNotes;
+      oldNotes = data;
+      data = [];
+      return angular.forEach(oldNotes, function(note) {
+        if (note.id !== id) {
+          return data.push(note);
+        }
+      });
+    }
+  };
 });
 
 var Game, Snake, includes,
@@ -182,16 +384,32 @@ includes = function(bodyPieces, head) {
 };
 
 Game = (function() {
-  function Game(boardSize) {
+  function Game(boardSize, id) {
     this.boardSize = boardSize;
+    this.id = id;
+    this.snakes = this.makeSnakes(2);
   }
 
-  Game.prototype.set = function(state) {
-    this.snakes = state.snakes;
+  Game.prototype.update = function(state) {
     this.food = state.food;
+    this.updateSnakes(state.snakes);
+    this.open = state.open;
+    this.stepTime = state.stepTime;
+    this.paused = state.paused;
     if (state.endGame) {
-      return this.over = state.endGame;
+      return this.endGame = state.endGame;
     }
+  };
+
+  Game.prototype.updateSnakes = function(updates) {
+    var i, snake, _i, _len, _ref, _results;
+    _ref = this.snakes;
+    _results = [];
+    for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
+      snake = _ref[i];
+      _results.push(snake.update(updates[i].body, updates[i].oldDirection, updates[i].direction));
+    }
+    return _results;
   };
 
   Game.prototype.makeSnakes = function(number) {
@@ -203,25 +421,6 @@ Game = (function() {
       _results.push(new Snake(this.randomCoord()));
     }
     return _results;
-  };
-
-  Game.prototype.collision = function() {
-    var bodies, i, losers, snake, _i, _j, _len, _len1, _ref, _ref1;
-    bodies = [];
-    losers = [];
-    _ref = this.snakes;
-    for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
-      snake = _ref[i];
-      bodies = bodies.concat(snake.body.slice(1));
-    }
-    _ref1 = this.snakes;
-    for (i = _j = 0, _len1 = _ref1.length; _j < _len1; i = ++_j) {
-      snake = _ref1[i];
-      if (includes(bodies, snake.body[0])) {
-        losers.push(i + 1);
-      }
-    }
-    return losers;
   };
 
   Game.prototype.step = function() {
@@ -276,14 +475,14 @@ Snake = (function() {
     this.direction = [1, 0];
   }
 
-  Snake.prototype.oroborus = function() {
-    return _(this.body.slice(1)).contains(this.body[0]);
+  Snake.prototype.update = function(body, oldDirection, direction) {
+    this.body = body;
+    this.oldDirection = oldDirection;
+    this.direction = direction;
   };
 
   Snake.prototype.move = function() {
-    var newPosition;
     this.oldDirection = this.direction;
-    newPosition = this.addVector(this.body[0], this.direction);
     this.body.unshift(this.addVector(this.body[0], this.direction));
     if (this.body.length > this.length) {
       return this.body.pop();
@@ -292,30 +491,6 @@ Snake = (function() {
 
   Snake.prototype.eat = function() {
     return this.length += 1;
-  };
-
-  Snake.prototype.directions = {
-    37: [-1, 0],
-    38: [0, -1],
-    39: [1, 0],
-    40: [0, 1]
-  };
-
-  Snake.prototype.turn = function(keyCode) {
-    var newDirection;
-    newDirection = this.directions[keyCode];
-    console.log('newDirection', newDirection);
-    if (!newDirection) {
-      return;
-    }
-    if (this.sameCoords([0, 0], this.addVector(newDirection, this.oldDirection))) {
-      return;
-    }
-    if (this.sameCoords(newDirection, this.oldDirection)) {
-      return;
-    }
-    this.direction = newDirection;
-    return true;
   };
 
   Snake.prototype.addVector = function(position, vector) {

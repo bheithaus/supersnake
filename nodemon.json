@@ -1,4 +1,5 @@
 {  "watch": [
-    "/client/coffeescripts/"
+    "/client/coffeescripts/",
+    "/snake/"
   ]
 }

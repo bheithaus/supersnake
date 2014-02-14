@@ -2,8 +2,10 @@ express = require 'express'
 io = require 'socket.io'
 http =  require 'http'
 path = require 'path'
+utils = require 'lodash'
 snakeController = require './snake/main'
 EventEmitter = require('events').EventEmitter
+
 class EE extends EventEmitter
 Events = new EE()
 
@@ -49,45 +51,20 @@ io.set 'log level', 1
 server.listen app.get('port'), () =>
   console.log('Express server listening on port ' + app.get('port'));
 
-generateUUID = (ip)->
-  d = new Date().getTime() + ip.replace /\./g, ''
-
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace /[xy]/g, (c) ->
-    r = (d + Math.random()*16)%16 | 0
-    d = Math.floor d/16
-    if c == 'x' 
-      n = r
-    else 
-      n = (r&0x7|0x8)
-
-    n.toString 16
-
-controllers = []
-
-# handles Placing players into two player games
-joinGame = (player) ->
-  latest = controllers[controllers.length - 1]
-
-  if latest && Object.keys(latest.game.players).length == 1
-    # join game with waiting player
-    latest.join player
-  else
-    # create new single player game
-    controllers.push new snakeController(player)
-
-  player.socket.emit 'join-client', player.id
-
-
 # Sockets
 io.sockets.on 'connection', (socket) ->
   address = socket.handshake.address
   client_ip = address.address
 
   # New player joining
-  socket.on 'ready',->
-    id = generateUUID(client_ip)
+  socket.on 'ready', ->
+    id = utils.uniqueId()
+    
+    # emit joined
+    socket.emit 'attach-client', id
 
-    joinGame
+    # join game
+    snakeController.joinGame
       socket: socket
       id: id
 
