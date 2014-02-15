@@ -24,7 +24,7 @@ module.exports = class Controller
     console.log 'join new client, settime'
     @updateClients human.id
 
-    setTimeout (() => @runStep true), 1000
+    setTimeout (() => @runStep true), 2000
 
   turn: (code, id) =>
     # console.log code, id

@@ -39,7 +39,7 @@ class clientController
     10 * pos + 5
 
   drawCircle: (pos, color, head) ->
-    radius = if head then 7 else 6
+    radius = if head then 6 else 5
     @context.beginPath()
     @context.arc @translate(pos[0]), @translate(pos[1]), radius, 0, CIRCLE, false
     @context.fillStyle = color
@@ -56,12 +56,13 @@ class clientController
 
   drawSnakes: ->
     for snake, i in @game.snakes
-      # draw head
-      @drawCircle snake.body[0], COLORS.players[i], true
-
       # draw body
       for piece in snake.body[1..]
         @drawCircle piece, '#435E3B'
+
+      # draw head
+      @drawCircle snake.body[0], COLORS.players[i], true
+
 
   drawFood: ->
     for food in @game.food
@@ -91,7 +92,7 @@ class clientController
       @drawPrompt 'Joining new Human vs. Human game', COLORS.background
       @drawPrompt 'Joining new Human vs. Human game', 'rgba(0, 20, 200, ' + a + ')'
       
-      setTimeout incoming, 100
+      setTimeout incoming, 60
     
     incoming()
 

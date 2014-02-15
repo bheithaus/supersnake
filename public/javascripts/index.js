@@ -51,7 +51,7 @@ clientController = (function() {
 
   clientController.prototype.drawCircle = function(pos, color, head) {
     var radius;
-    radius = head ? 7 : 6;
+    radius = head ? 6 : 5;
     this.context.beginPath();
     this.context.arc(this.translate(pos[0]), this.translate(pos[1]), radius, 0, CIRCLE, false);
     this.context.fillStyle = color;
@@ -70,22 +70,17 @@ clientController = (function() {
   };
 
   clientController.prototype.drawSnakes = function() {
-    var i, piece, snake, _i, _len, _ref, _results;
+    var i, piece, snake, _i, _j, _len, _len1, _ref, _ref1, _results;
     _ref = this.game.snakes;
     _results = [];
     for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
       snake = _ref[i];
-      this.drawCircle(snake.body[0], COLORS.players[i], true);
-      _results.push((function() {
-        var _j, _len1, _ref1, _results1;
-        _ref1 = snake.body.slice(1);
-        _results1 = [];
-        for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-          piece = _ref1[_j];
-          _results1.push(this.drawCircle(piece, '#435E3B'));
-        }
-        return _results1;
-      }).call(this));
+      _ref1 = snake.body.slice(1);
+      for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+        piece = _ref1[_j];
+        this.drawCircle(piece, '#435E3B');
+      }
+      _results.push(this.drawCircle(snake.body[0], COLORS.players[i], true));
     }
     return _results;
   };
@@ -133,7 +128,7 @@ clientController = (function() {
         dir = a >= 1 ? -1 : a <= 0 ? 1 : dir;
         _this.drawPrompt('Joining new Human vs. Human game', COLORS.background);
         _this.drawPrompt('Joining new Human vs. Human game', 'rgba(0, 20, 200, ' + a + ')');
-        return setTimeout(incoming, 100);
+        return setTimeout(incoming, 60);
       };
     })(this);
     return incoming();
