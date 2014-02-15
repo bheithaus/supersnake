@@ -12,6 +12,7 @@ module.exports = class Controller
     @bindEvents player
     @runStep true
     @id = utils.uniqueId()
+    @cyclesSinceUpdate = 0
   
   # human has arrived, so create a new game with two players
   join: (human) =>
@@ -39,17 +40,17 @@ module.exports = class Controller
     @runStep() if not @game.paused
 
   updateClients: (incoming, newGame) ->
+    @cyclesSinceUpdate = 0
     @updateRequired = false
     state = @game.zip(incoming, newGame)
 
     for id, player of @game.players
-      console.log 'update!', @game.players
+      # console.log 'update!', @game.players
       player.socket.emit 'update-client', state
 
   tearDownStartAnew: (id) ->
     player = @game.players[id]
     if player
-      console.log player
       @unbindEvents player
 
     delete @game.players[id]
@@ -93,8 +94,15 @@ module.exports = class Controller
     for key, handler of @_socketEvents
       player.socket.removeAllListeners key
 
+  updateCounter: () ->
+    @cyclesSinceUpdate++
+    if @cyclesSinceUpdate > 4
+      @updateRequired = true
+
   runStep: (newGame) =>
+    @updateCounter()
     @game.step()
+    #  maybe there is a better way to handle these parameters to updateClients?
     @updateClients(null, newGame) if newGame or @game.endGame or @updateRequired
     @runLoop() if not @game.paused and not @game.endGame
 
