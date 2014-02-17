@@ -1,11 +1,17 @@
-div.sidebar.pull-right
+div.sidebar.pull-right(ng-controller="MainCtrl")
   table
     tr
+      th Total Games
       th Wins
       th Losses
+      th Growth
     tr
-      td 30
-      td 10
+      td {{player.total}}
+      td {{player.wins}}
+      td {{player.losses}}
+      td {{player.growth}}
+
+  h1 {{losses}}
 
   h4 concurrent Games
     small 3,000

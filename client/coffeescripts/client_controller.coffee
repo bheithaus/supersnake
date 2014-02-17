@@ -19,14 +19,15 @@ COLORS =
   ]
 
 class clientController
-  constructor: (@socket, @id) ->
+  constructor: (@socket, @player) ->
+    @id = @player.id
     @game = new Game 50, @id
     @canvas = $ 'canvas'
     @context = @canvas[0].getContext '2d'
 
   namespace: '.snake'
 
-  render: ->
+  render: =>
     @clear()
     @drawSnakes()
     @drawScore()
@@ -184,6 +185,9 @@ $document.ready ->
   socket.on 'attach-client', (id) =>
     # Instantiate Client
     client = window.client = new clientController(socket, id)
+
+    $document.trigger 'brianscustom'
+    
     socket.on 'update-client', client.state
     
 

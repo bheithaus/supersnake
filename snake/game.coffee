@@ -91,15 +91,15 @@ module.exports = class Game
 
   end: (quit) ->
     collision = @collision()
-    
+
     @endGame = if quit then -2 else switch collision.length
       when 0 then null
       when 1 then collision[0]
       when 2 then -1
 
   hitEdge: (snake) =>
-    snake.body[0][0] += @boundsOneWay(snake.body[0][0]) * @boardSize;
-    snake.body[0][1] += @boundsOneWay(snake.body[0][1]) * @boardSize;
+    snake.body[0][0] += @boundsOneWay(snake.body[0][0]) * @boardSize
+    snake.body[0][1] += @boundsOneWay(snake.body[0][1]) * @boardSize
 
   boundsOneWay: (position) ->
     return 1 if position < 0

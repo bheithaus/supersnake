@@ -1,11 +1,16 @@
 express = require 'express'
-io = require 'socket.io'
+events = require 'events'
 http =  require 'http'
 path = require 'path'
-utils = require 'lodash'
-snakeController = require './snake/main'
-EventEmitter = require('events').EventEmitter
 
+io = require 'socket.io'
+utils = require 'lodash'
+
+snakeController = require './snake/main'
+store = require './store'
+
+# setup Event Emitter
+EventEmitter = events.EventEmitter
 class EE extends EventEmitter
 Events = new EE()
 
@@ -13,9 +18,7 @@ paths =
   bower:  express.static path.join(__dirname, '/bower_components')
   public: express.static path.join(__dirname, '/public')
 
-
 routes = require './routes'
-user = require './routes/user'
 
 app = express()
 
@@ -40,7 +43,6 @@ if 'development' == app.get('env')
   app.use express.errorHandler()
 
 app.get '/',      routes.index
-app.get '/users', user.list
 
 # setup Servers
 server = http.createServer(app)
@@ -58,13 +60,18 @@ io.sockets.on 'connection', (socket) ->
 
   # New player joining
   socket.on 'ready', ->
-    id = utils.uniqueId()
-    
-    # emit joined
-    socket.emit 'attach-client', id
+    id = client_ip
+  
+    store.findOrCreate id, (err, player) =>
+      # emit joined
+      socket.emit 'attach-client', 
+        id: id
+        meta:
+          gC: player.gameCount
+          wC: player.winCount
+          gr: player.growth
 
-    # join game
-    snakeController.joinGame
-      socket: socket
-      id: id
-
+      # join game
+      snakeController.joinGame
+        socket: socket
+        id: id

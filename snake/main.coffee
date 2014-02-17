@@ -1,5 +1,6 @@
 utils = require('lodash')
 Game = require('./game')
+store = require '../store'
 
 includes = (bodyPieces, head) ->
   utils(bodyPieces).any((piece) -> piece[0] == head[0] && piece[1] == head[1])
@@ -103,11 +104,30 @@ module.exports = class Controller
     @updateCounter()
     @game.step()
     #  maybe there is a better way to handle these parameters to updateClients?
+    
+    @close() if @game.endGame
+
     @updateClients(null, newGame) if newGame or @game.endGame or @updateRequired
     @runLoop() if not @game.paused and not @game.endGame
 
   runLoop: ->
     @timeout = setTimeout @runStep, @game.stepTime()
+
+  close: ->
+    if typeof @game.endGame is 'string'
+      for id, player of @game.players
+        console.log player.snake.body.length
+        
+        inc = 
+          $inc: 
+            gameCount: 1
+            growth: player.snake.body.length - 15
+
+        inc.$inc.winCount = 1 if id isnt @game.endGame
+
+        store.Player.findOneAndUpdate { pid: id }, inc, (err, player) =>
+          return console.error err if err
+          console.log player
 
 # all current games
 controllers = {}

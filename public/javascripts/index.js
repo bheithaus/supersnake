@@ -21,13 +21,15 @@ COLORS = {
 };
 
 clientController = (function() {
-  function clientController(socket, id) {
+  function clientController(socket, player) {
     this.socket = socket;
-    this.id = id;
+    this.player = player;
     this.update = __bind(this.update, this);
     this.state = __bind(this.state, this);
     this.runStep = __bind(this.runStep, this);
     this.bindKeyDown = __bind(this.bindKeyDown, this);
+    this.render = __bind(this.render, this);
+    this.id = this.player.id;
     this.game = new Game(50, this.id);
     this.canvas = $('canvas');
     this.context = this.canvas[0].getContext('2d');
@@ -244,130 +246,43 @@ $document.ready(function() {
   return socket.on('attach-client', (function(_this) {
     return function(id) {
       client = window.client = new clientController(socket, id);
+      $document.trigger('brianscustom');
       return socket.on('update-client', client.state);
     };
   })(this));
 });
 
-var DetailCtrl, HomeCtrl, ListCtrl, MainCtrl, SettingsCtrl;
+var MainCtrl, app, parseMeta;
 
-angular.module('app', ['appServices']).config([
-  '$routeProvider', function($routeProvider) {
-    return $routeProvider.when('/home', {
-      templateUrl: 'home.html',
-      controller: HomeCtrl
-    }).when('/list', {
-      templateUrl: 'list.html',
-      controller: ListCtrl
-    }).when('/detail/:itemId', {
-      templateUrl: 'detail.html',
-      controller: DetailCtrl
-    }).when('/settings', {
-      templateUrl: 'settings.html',
-      controller: SettingsCtrl
-    }).otherwise({
-      redirectTo: '/home'
+app = angular.module('app', []);
+
+parseMeta = function(meta) {
+  return {
+    total: meta.gC,
+    wins: meta.wC,
+    losses: meta.gC - meta.wC,
+    growth: meta.gr
+  };
+};
+
+MainCtrl = (function() {
+  MainCtrl.$inject = ['$scope'];
+
+  function MainCtrl($scope) {
+    $(document).on('brianscustom', function() {
+      $scope.player = angular.extend({}, window.client.player);
+      angular.extend($scope.player, parseMeta($scope.player.meta));
+      $scope.losses = $scope.player.losses;
+      console.log('player', $scope.player);
+      return console.log('scope', $scope);
     });
   }
-]);
 
-MainCtrl = function($scope, Page) {
-  console.log(Page);
-  return $scope.page = Page;
-};
+  return MainCtrl;
 
-HomeCtrl = function($scope, Page) {
-  return Page.setTitle("Welcome");
-};
+})();
 
-ListCtrl = function($scope, Page, Model) {
-  Page.setTitle("Items");
-  return $scope.items = Model.notes();
-};
-
-DetailCtrl = function($scope, Page, Model, $routeParams, $location) {
-  var id;
-  Page.setTitle("Detail");
-  id = $scope.itemId = $routeParams.itemId;
-  return $scope.item = Model.get(id);
-};
-
-SettingsCtrl = function($scope, Page) {
-  return Page.setTitle("Settings");
-};
-
-angular.module('appServices', []).factory('Page', function($rootScope) {
-  var page, pageTitle;
-  pageTitle = "Untitled";
-  return page = {
-    title: function() {
-      return pageTitle;
-    },
-    setTitle: function(newTitle) {
-      return pageTitle = newTitle;
-    }
-  };
-}).factory('Model', function() {
-  var data, model;
-  data = [
-    {
-      id: 0,
-      title: 'Doh',
-      detail: "A dear. A female dear."
-    }, {
-      id: 1,
-      title: 'Re',
-      detail: "A drop of golden sun."
-    }, {
-      id: 2,
-      title: 'Me',
-      detail: "A name I call myself."
-    }, {
-      id: 3,
-      title: 'Fa',
-      detail: "A long, long way to run."
-    }, {
-      id: 4,
-      title: 'So',
-      detail: "A needle pulling thread."
-    }, {
-      id: 5,
-      title: 'La',
-      detail: "A note to follow So."
-    }, {
-      id: 6,
-      title: 'Tee',
-      detail: "A drink with jam and bread."
-    }
-  ];
-  return model = {
-    notes: function() {
-      return data;
-    },
-    get: function(id) {
-      return data[id];
-    },
-    add: function(note) {
-      var currentIndex;
-      currentIndex = data.length;
-      return data.push({
-        id: currentIndex,
-        title: note.title,
-        detail: note.detail
-      });
-    },
-    "delete": function(id) {
-      var oldNotes;
-      oldNotes = data;
-      data = [];
-      return angular.forEach(oldNotes, function(note) {
-        if (note.id !== id) {
-          return data.push(note);
-        }
-      });
-    }
-  };
-});
+app.controller('MainCtrl', MainCtrl);
 
 var Game, Snake, includes,
   __slice = [].slice;

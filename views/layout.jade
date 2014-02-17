@@ -1,12 +1,12 @@
 doctype html
 
-html(ng-app=app)
+html
   head
     block head
       include Framework/head
       yield
 
-  body
+  body(ng-app="app")
     include Framework/header
 
     div.content

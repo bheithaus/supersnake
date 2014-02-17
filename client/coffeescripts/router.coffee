@@ -1,79 +1,41 @@
-angular.module('app', ['appServices'])
-  .config(['$routeProvider', ($routeProvider) ->
-    $routeProvider.
-      when('/home', {templateUrl: 'home.html',   controller: HomeCtrl}).
-      when('/list', {templateUrl: 'list.html',   controller: ListCtrl}).
-      when('/detail/:itemId', {templateUrl: 'detail.html',   controller: DetailCtrl}).
-      when('/settings', {templateUrl: 'settings.html',   controller: SettingsCtrl}).
-      otherwise({redirectTo: '/home'});
-  ])
+app = angular.module 'app', []
 
+# # simple class exemple - minification safe
+# class MySimpleCtrl
 
-# /* Controllers */
-
-MainCtrl = ($scope, Page) ->
-  console.log(Page);
-  $scope.page= Page; 
-
-
-HomeCtrl = ($scope, Page) ->
-  Page.setTitle("Welcome");
-
-
-
-ListCtrl = ($scope, Page, Model) ->
-  Page.setTitle("Items");
-  $scope.items = Model.notes();
-
-
-DetailCtrl = ($scope, Page, Model, $routeParams, $location) ->
-  Page.setTitle("Detail")
-  id = $scope.itemId = $routeParams.itemId
-  $scope.item = Model.get(id)
-
-SettingsCtrl = ($scope, Page) ->
-  Page.setTitle("Settings");
-
-# /* Services */
-
-angular.module 'appServices', [] 
-  .factory 'Page', ($rootScope) ->
-    pageTitle = "Untitled"
+#   @$inject: ['$scope'] 
+#   constructor: (@scope) ->
+#     # attach viewmodel data to the scope:
+#     @scope.demo = 'Simple class demo'
     
-    page =
-      title: () ->
-        return pageTitle
+#     # expose controller functions to scope
+#     angular.extend @scope,
+#       clear: @clear
 
-      setTitle: (newTitle) ->
-        pageTitle = newTitle
+#   # use => to bind function to controller instance
+#   clear: =>
+#     @scope.demo = ""  
 
-  .factory 'Model', () ->
-    data = [
-      {id:0, title:'Doh', detail:"A dear. A female dear."},
-      {id:1, title:'Re', detail:"A drop of golden sun."},
-      {id:2, title:'Me', detail:"A name I call myself."},
-      {id:3, title:'Fa', detail:"A long, long way to run."},
-      {id:4, title:'So', detail:"A needle pulling thread."},
-      {id:5, title:'La', detail:"A note to follow So."},
-      {id:6, title:'Tee', detail:"A drink with jam and bread."}
-    ]
+parseMeta = (meta) ->
+  total: meta.gC
+  wins: meta.wC
+  losses: meta.gC - meta.wC
+  growth: meta.gr
 
-    model =
-      notes: () ->
-        return data
+class MainCtrl
+  @$inject: ['$scope'] 
 
-      get: (id) ->
-        return data[id]
-      
-      add: (note) ->
-        currentIndex = data.length
-        data.push
-          id: currentIndex
-          title: note.title
-          detail: note.detail
+  constructor: ($scope) ->
+    $(document).on 'brianscustom', () ->
+      $scope.player = angular.extend {}, window.client.player
+      angular.extend $scope.player, parseMeta($scope.player.meta)
 
-      delete: (id) ->
-        oldNotes = data
-        data = []
-        angular.forEach oldNotes, (note) ->
-          data.push(note) if note.id isnt id
+      $scope.losses = $scope.player.losses
+
+      console.log 'player', $scope.player
+      console.log 'scope', $scope
+
+app.controller 'MainCtrl', MainCtrl
+
+# //myApp.directive('myDirective', function() {});
+# //myApp.factory('myService', function() {});
