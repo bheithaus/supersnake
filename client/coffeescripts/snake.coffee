@@ -2,28 +2,28 @@ includes = (bodyPieces, head) ->
     _(bodyPieces).any((piece)-> piece[0] == head[0] && piece[1] == head[1]) 
 
 class Game
-  constructor: (@boardSize, @id) ->
-    @snakes = @makeSnakes 2
+  constructor: (@boardSize, @id, snakes, @open) ->
+    @snakes = @makeSnakes snakes
 
   update: (state) ->
-    @food = state.food
-    @updateSnakes(state.snakes)
-    @open = state.open
-    @stepTime = state.stepTime
-    @paused = state.paused
+    @updateSnakes state.s
+    @food = state.f
+    @paused = state.p
 
-    if state.endGame
-      @endGame = state.endGame
+    if state.e
+      @endGame = state.e
 
   updateSnakes: (updates) ->
-    for snake, i in @snakes
-      snake.update updates[i].body, updates[i].oldDirection, updates[i].direction
+    for id, snake of updates
+      @snakes[id].update snake.h , snake.d, snake.l
 
-  makeSnakes: (number) ->
-    new Snake (@randomCoord()) for i in [1,1]
+  makeSnakes: (snakes) ->
+    _(snakes).mapValues((snake, id) => 
+      new Snake snake
+    ).value()
 
   step: ->
-    for snake in @snakes
+    for id, snake of @snakes
       snake.move()
       @hitEdge snake
     
@@ -35,10 +35,12 @@ class Game
     snake.body[0][1] += @boundsOneWay(snake.body[0][1]) * @boardSize
 
   boundsOneWay: (position) ->
-    return 1 if position < 0
-    return -1 if position >= @boardSize
-
-    0
+    if position < 0
+      1
+    else if position >= @boardSize
+      -1
+    else
+      0
 
 class Snake
   constructor: (@body...) ->
@@ -46,22 +48,6 @@ class Snake
     @oldDirection = [1,0]
     @direction = [1,0]
 
-  # oroborus: ->
-  #   _(@body.slice 1).contains(@body[0])
-
-  update: (@body, @oldDirection, @direction) ->
-
-  move: ->
-    @oldDirection = @direction
-    @body.unshift(@addVector(@body[0], @direction))
+  update: (head, @direction, @length) ->
+    @body.unshift(head)
     @body.pop() if @body.length > @length
-
-  eat: ->
-    @length += 1
-
-#helpers
-  addVector: (position, vector) ->
-    [position[0] + vector[0], position[1] + vector[1]]
-
-  sameCoords: (c1, c2) ->
-    c1[0] == c2[0] && c1[1] == c2[1]

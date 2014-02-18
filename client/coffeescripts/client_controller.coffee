@@ -21,9 +21,14 @@ COLORS =
 class clientController
   constructor: (@socket, @player) ->
     @id = @player.id
-    @game = new Game 50, @id
     @canvas = $ 'canvas'
     @context = @canvas[0].getContext '2d'
+
+  newGame: (state) ->
+    @game = new Game 50, @id, state.s, state.o
+    @bindKeyDown()
+    @started = true
+    @running = true
 
   namespace: '.snake'
 
@@ -53,16 +58,18 @@ class clientController
     @context.font = FONTS.score
     @context.textAlign = "left"
     @context.fillStyle = 'orange'
-    @context.fillText('Awaiting player - in Practice Mode', 10, 10)    
+    @context.fillText 'Awaiting player - in Practice Mode', 10, 10  
 
   drawSnakes: ->
-    for snake, i in @game.snakes
+    iterator = 0
+    for id, snake of @game.snakes
       # draw body
       for piece in snake.body[1..]
         @drawCircle piece, '#435E3B'
 
       # draw head
-      @drawCircle snake.body[0], COLORS.players[i], true
+      @drawCircle snake.body[0], COLORS.players[iterator], true
+      iterator++
 
 
   drawFood: ->
@@ -73,9 +80,11 @@ class clientController
     @context.font = FONTS.score
     @context.textAlign = "left"
 
-    for snake, i in @game.snakes
-      @context.fillStyle = COLORS.players[i]
-      @context.fillText "Score: " + snake.body.length, 435, 15 + (15 * i)
+    iterator = 0
+    for id, snake of @game.snakes
+      @context.fillStyle = COLORS.players[iterator]
+      @context.fillText "Score: " + snake.body.length, 435, 15 + (15 * iterator)
+      iterator++
 
   drawPause: ->
     @drawPrompt PAUSE_PROMPTS[(if @game.paused == @id then 'self' else 'other')], "blue", true
@@ -120,21 +129,14 @@ class clientController
         @socket.emit 'keypress', code, @id
 
 
-  runStep: =>
-    if @newState
-      @game.update @newState
-      incoming = @newState.incoming
-      @newState = null
-
-      return if incoming
-    else 
-      @game.step()
+  runStep: (state) =>
+    @game.update state
 
     if not @game.endGame
       return @drawPause() if @game.paused
       @render()
-      @runLoop()      
     else
+      # game over :p
       @render()
 
       loser = @game.endGame
@@ -148,31 +150,21 @@ class clientController
       @drawPrompt prompt + "! >--< Press Enter.", "red"
       @game.endGame = null
 
-  newGame: () ->
-    @bindKeyDown()
-    @started = true
-    @running = true
-
-    @runStep()
-
   # Catch Update
   state: (state) =>
-    @newState = state
-    return @incomingPlayer() if state.incoming
+    return @newGame state if state.n
+    return @incomingPlayer() if state.i
 
-    if state.newGame
-      @newGame()
-    else if @game.paused
-      # game paused, but action required
-      @runStep() if state.endGame or not state.paused
-
-  # use Updated state to modify game
-  update: =>
-    @game.update @newState
-    @newState = null
+    @runStep state 
+      
+    # if @game.paused
+    #   # game paused, but action required
+    #   @runLoop() if state.endGame or not state.paused
 
   runLoop: ->
-    @timeout = window.setTimeout @runStep, @game.stepTime
+    window.clearTimeout @timeout
+
+    @timeout = window.setTimeout @runStep, @game.stepTime + 20
 
 $document.ready ->
   client = null

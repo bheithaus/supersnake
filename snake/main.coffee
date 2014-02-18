@@ -7,14 +7,17 @@ includes = (bodyPieces, head) ->
 
 module.exports = class Controller
   constructor: (player) ->
-    console.log 'controller!', player
+    @id = utils.uniqueId()
     # create a one player game, with AI
+    @newPracticeGame player
+  
+  newPracticeGame: (player) ->
+    @cyclesSinceUpdate = 0
     @game = new Game @, 50, player
     @bindEvents player
-    @runStep true
-    @id = utils.uniqueId()
-    @cyclesSinceUpdate = 0
-  
+    @updateClients null, true, true
+    @runStep()
+
   # human has arrived, so create a new game with two players
   join: (human) =>
     clearTimeout @timeout
@@ -22,28 +25,27 @@ module.exports = class Controller
     other = player for id, player of @game.players when id isnt 'AI'
     @game = new Game @, 50, other, human
     @bindEvents human
-
-    console.log 'join new client, settime'
-    @updateClients human.id
+    @updateClients human.id, true
 
     setTimeout (() => @runStep true), 2000
 
+  # turn as in, turn the snake a certain direction
   turn: (code, id) =>
     # console.log code, id
     @game.players[id].snake.turn code
-    @updateRequired = true
 
   pause: (id) =>
     paused = @game.paused
     @game.paused = if paused is id then null else if not paused then id else paused
-    @updateRequired = true
     
     @runStep() if not @game.paused
 
-  updateClients: (incoming, newGame) ->
+  updateClients: (incoming, newGame, open) ->
     @cyclesSinceUpdate = 0
     @updateRequired = false
-    state = @game.zip(incoming, newGame)
+    state = @game.zip incoming, newGame, open
+
+    # console.log 'newGame? ', newGame, state
 
     for id, player of @game.players
       # console.log 'update!', @game.players
@@ -100,34 +102,30 @@ module.exports = class Controller
     if @cyclesSinceUpdate > 4
       @updateRequired = true
 
-  runStep: (newGame) =>
-    @updateCounter()
+  runStep: () =>
     @game.step()
-    #  maybe there is a better way to handle these parameters to updateClients?
-    
     @close() if @game.endGame
-
-    @updateClients(null, newGame) if newGame or @game.endGame or @updateRequired
+    @updateClients()
     @runLoop() if not @game.paused and not @game.endGame
 
   runLoop: ->
     @timeout = setTimeout @runStep, @game.stepTime()
 
   close: ->
-    if typeof @game.endGame is 'string'
-      for id, player of @game.players
-        console.log player.snake.body.length
-        
-        inc = 
-          $inc: 
-            gameCount: 1
-            growth: player.snake.body.length - 15
+    for id, player of @game.players
+      console.log player.snake.body.length
+      
+      inc = 
+        $inc: 
+          gameCount: 1
+          growth: player.snake.body.length - 15
 
+      if typeof @game.endGame is 'string'
         inc.$inc.winCount = 1 if id isnt @game.endGame
 
-        store.Player.findOneAndUpdate { pid: id }, inc, (err, player) =>
-          return console.error err if err
-          console.log player
+      store.Player.findOneAndUpdate { pid: id }, inc, (err, player) =>
+        return console.error err if err
+        console.log player
 
 # all current games
 controllers = {}

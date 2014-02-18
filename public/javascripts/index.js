@@ -24,16 +24,21 @@ clientController = (function() {
   function clientController(socket, player) {
     this.socket = socket;
     this.player = player;
-    this.update = __bind(this.update, this);
     this.state = __bind(this.state, this);
     this.runStep = __bind(this.runStep, this);
     this.bindKeyDown = __bind(this.bindKeyDown, this);
     this.render = __bind(this.render, this);
     this.id = this.player.id;
-    this.game = new Game(50, this.id);
     this.canvas = $('canvas');
     this.context = this.canvas[0].getContext('2d');
   }
+
+  clientController.prototype.newGame = function(state) {
+    this.game = new Game(50, this.id, state.s, state.o);
+    this.bindKeyDown();
+    this.started = true;
+    return this.running = true;
+  };
 
   clientController.prototype.namespace = '.snake';
 
@@ -72,17 +77,19 @@ clientController = (function() {
   };
 
   clientController.prototype.drawSnakes = function() {
-    var i, piece, snake, _i, _j, _len, _len1, _ref, _ref1, _results;
+    var id, iterator, piece, snake, _i, _len, _ref, _ref1, _results;
+    iterator = 0;
     _ref = this.game.snakes;
     _results = [];
-    for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
-      snake = _ref[i];
+    for (id in _ref) {
+      snake = _ref[id];
       _ref1 = snake.body.slice(1);
-      for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-        piece = _ref1[_j];
+      for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+        piece = _ref1[_i];
         this.drawCircle(piece, '#435E3B');
       }
-      _results.push(this.drawCircle(snake.body[0], COLORS.players[i], true));
+      this.drawCircle(snake.body[0], COLORS.players[iterator], true);
+      _results.push(iterator++);
     }
     return _results;
   };
@@ -99,15 +106,17 @@ clientController = (function() {
   };
 
   clientController.prototype.drawScore = function() {
-    var i, snake, _i, _len, _ref, _results;
+    var id, iterator, snake, _ref, _results;
     this.context.font = FONTS.score;
     this.context.textAlign = "left";
+    iterator = 0;
     _ref = this.game.snakes;
     _results = [];
-    for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
-      snake = _ref[i];
-      this.context.fillStyle = COLORS.players[i];
-      _results.push(this.context.fillText("Score: " + snake.body.length, 435, 15 + (15 * i)));
+    for (id in _ref) {
+      snake = _ref[id];
+      this.context.fillStyle = COLORS.players[iterator];
+      this.context.fillText("Score: " + snake.body.length, 435, 15 + (15 * iterator));
+      _results.push(iterator++);
     }
     return _results;
   };
@@ -166,24 +175,14 @@ clientController = (function() {
     })(this));
   };
 
-  clientController.prototype.runStep = function() {
-    var incoming, loser, prompt;
-    if (this.newState) {
-      this.game.update(this.newState);
-      incoming = this.newState.incoming;
-      this.newState = null;
-      if (incoming) {
-        return;
-      }
-    } else {
-      this.game.step();
-    }
+  clientController.prototype.runStep = function(state) {
+    var loser, prompt;
+    this.game.update(state);
     if (!this.game.endGame) {
       if (this.game.paused) {
         return this.drawPause();
       }
-      this.render();
-      return this.runLoop();
+      return this.render();
     } else {
       this.render();
       loser = this.game.endGame;
@@ -204,34 +203,19 @@ clientController = (function() {
     }
   };
 
-  clientController.prototype.newGame = function() {
-    this.bindKeyDown();
-    this.started = true;
-    this.running = true;
-    return this.runStep();
-  };
-
   clientController.prototype.state = function(state) {
-    this.newState = state;
-    if (state.incoming) {
+    if (state.n) {
+      return this.newGame(state);
+    }
+    if (state.i) {
       return this.incomingPlayer();
     }
-    if (state.newGame) {
-      return this.newGame();
-    } else if (this.game.paused) {
-      if (state.endGame || !state.paused) {
-        return this.runStep();
-      }
-    }
-  };
-
-  clientController.prototype.update = function() {
-    this.game.update(this.newState);
-    return this.newState = null;
+    return this.runStep(state);
   };
 
   clientController.prototype.runLoop = function() {
-    return this.timeout = window.setTimeout(this.runStep, this.game.stepTime);
+    window.clearTimeout(this.timeout);
+    return this.timeout = window.setTimeout(this.runStep, this.game.stepTime + 20);
   };
 
   return clientController;
@@ -294,51 +278,46 @@ includes = function(bodyPieces, head) {
 };
 
 Game = (function() {
-  function Game(boardSize, id) {
+  function Game(boardSize, id, snakes, open) {
     this.boardSize = boardSize;
     this.id = id;
-    this.snakes = this.makeSnakes(2);
+    this.open = open;
+    this.snakes = this.makeSnakes(snakes);
   }
 
   Game.prototype.update = function(state) {
-    this.food = state.food;
-    this.updateSnakes(state.snakes);
-    this.open = state.open;
-    this.stepTime = state.stepTime;
-    this.paused = state.paused;
-    if (state.endGame) {
-      return this.endGame = state.endGame;
+    this.updateSnakes(state.s);
+    this.food = state.f;
+    this.paused = state.p;
+    if (state.e) {
+      return this.endGame = state.e;
     }
   };
 
   Game.prototype.updateSnakes = function(updates) {
-    var i, snake, _i, _len, _ref, _results;
-    _ref = this.snakes;
+    var id, snake, _results;
     _results = [];
-    for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
-      snake = _ref[i];
-      _results.push(snake.update(updates[i].body, updates[i].oldDirection, updates[i].direction));
+    for (id in updates) {
+      snake = updates[id];
+      _results.push(this.snakes[id].update(snake.h, snake.d, snake.l));
     }
     return _results;
   };
 
-  Game.prototype.makeSnakes = function(number) {
-    var i, _i, _len, _ref, _results;
-    _ref = [1, 1];
-    _results = [];
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      i = _ref[_i];
-      _results.push(new Snake(this.randomCoord()));
-    }
-    return _results;
+  Game.prototype.makeSnakes = function(snakes) {
+    return _(snakes).mapValues((function(_this) {
+      return function(snake, id) {
+        return new Snake(snake);
+      };
+    })(this)).value();
   };
 
   Game.prototype.step = function() {
-    var snake, _i, _len, _ref, _results;
+    var id, snake, _ref, _results;
     _ref = this.snakes;
     _results = [];
-    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-      snake = _ref[_i];
+    for (id in _ref) {
+      snake = _ref[id];
       snake.move();
       _results.push(this.hitEdge(snake));
     }
@@ -385,30 +364,13 @@ Snake = (function() {
     this.direction = [1, 0];
   }
 
-  Snake.prototype.update = function(body, oldDirection, direction) {
-    this.body = body;
-    this.oldDirection = oldDirection;
+  Snake.prototype.update = function(head, direction, length) {
     this.direction = direction;
-  };
-
-  Snake.prototype.move = function() {
-    this.oldDirection = this.direction;
-    this.body.unshift(this.addVector(this.body[0], this.direction));
+    this.length = length;
+    this.body.unshift(head);
     if (this.body.length > this.length) {
       return this.body.pop();
     }
-  };
-
-  Snake.prototype.eat = function() {
-    return this.length += 1;
-  };
-
-  Snake.prototype.addVector = function(position, vector) {
-    return [position[0] + vector[0], position[1] + vector[1]];
-  };
-
-  Snake.prototype.sameCoords = function(c1, c2) {
-    return c1[0] === c2[0] && c1[1] === c2[1];
   };
 
   return Snake;

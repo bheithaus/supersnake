@@ -16,6 +16,11 @@ module.exports = class Snake
     # console.log(@body)
     @body.pop() if @body.length > @length
 
+  zip: ->
+    l: @length
+    d: @direction
+    h: @body[0]
+
   eat: ->
     @length += 1
 

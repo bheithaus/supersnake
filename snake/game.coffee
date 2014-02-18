@@ -17,7 +17,6 @@ module.exports = class Game
 
     # one human vs. AI
     @addPlayer new AIPlayer(@)
-    @open = true
 
   stepTime: () ->
     100
@@ -27,42 +26,41 @@ module.exports = class Game
     player.snake = new Snake @randomCoord()
     # add to list
     @players[player.id] = player
-    @open = false
     @
 
-  zip: (incoming, newGame) ->
-    snakes: utils(@players).map((player, key) ->
-      player.snake
-    ).value()
-    food: @food
-    size: @boardSize
-    paused: @paused
-    open: @open
-    stepTime: @stepTime()
-    endGame: @endGame
-    incoming: incoming
-    newGame: newGame
+  zip: (incoming, newGame, open) ->
+    zipped = 
+      s: utils(@players).mapValues((player, key) ->
+        player.snake.zip()
+      ).value()
+      f: @food
+
+    zipped.o = true if open
+    zipped.i = true if incoming
+    zipped.n = true if newGame
+    zipped.p = @paused if @paused
+    zipped.e = @endGame if @endGame
+    
+    zipped
 
   collision: ->
     bodies = []
     losers = []
-    bodies = bodies.concat( player.snake.body[1..] ) for id, player of @players
+    bodies = bodies.concat player.snake.body[1..]  for id, player of @players
 
-    # got your head in the pile? then, ya lose!
+    # got your head in the pile? --> ya lose!
     losers.push id for id, player of @players when includes bodies, player.snake.body[0]
-
+    
     losers
 
   step: ->
     for id, player of @players
-      snake = player.snake
-      # console.log id, new Date().getTime()
       player.choose() if id is 'AI'
-
+      
+      snake = player.snake
       snake.move()
       @hitEdge snake
-
-      @feast snake  if @hitFood snake
+      @feast snake if @hitFood snake
 
     # Test for endGame
     @end()
