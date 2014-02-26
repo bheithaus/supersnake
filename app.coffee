@@ -1,29 +1,21 @@
 express = require 'express'
-events = require 'events'
 http =  require 'http'
 path = require 'path'
-
-io = require 'socket.io'
 utils = require 'lodash'
+socket = require './socket'
+routes = require './routes'
 
-snakeController = require './snake/main'
-store = require './store'
-
-# setup Event Emitter
-EventEmitter = events.EventEmitter
-class EE extends EventEmitter
-Events = new EE()
-
+# Static File Routes
 paths =
   bower:  express.static path.join(__dirname, '/bower_components')
   public: express.static path.join(__dirname, '/public')
 
-routes = require './routes'
+
 
 app = express()
 
 #  all environments
-app.set 'port', process.env.PORT || 80
+app.set 'port', process.env.PORT || 3000
 app.set 'views', path.join(__dirname, '/views')
 app.set 'view engine', 'jade'
 
@@ -42,36 +34,20 @@ app.use app.router
 if 'development' == app.get('env')
   app.use express.errorHandler()
 
-app.get '/',      routes.index
+app.get '/',                  routes.index
+app.get '/partials/(*)',      routes.partial
+app.get '/api/leaders',       routes.leaders
 
-# setup Servers
+
+app.get '*',                  routes.index
+
+
+# setup server
 server = http.createServer(app)
-io = io.listen server
-io.set 'log level', 1
 
 # start server
 server.listen app.get('port'), () =>
   console.log('Express server listening on port ' + app.get('port'));
 
-# Sockets
-io.sockets.on 'connection', (socket) ->
-  address = socket.handshake.address
-  client_ip = address.address
-
-  # New player joining
-  socket.on 'ready', ->
-    id = client_ip
-  
-    store.findOrCreate id, (err, player) =>
-      # emit joined
-      socket.emit 'attach-client', 
-        id: id
-        meta:
-          gC: player.gameCount
-          wC: player.winCount
-          gr: player.growth
-
-      # join game
-      snakeController.joinGame
-        socket: socket
-        id: id
+# connet socket.io to server
+socket.init server

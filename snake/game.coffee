@@ -12,14 +12,19 @@ module.exports = class Game
     @players = {}
     @addPlayer player
 
-    # two human players
+    # two human players case
     return @addPlayer second if second
 
     # one human vs. AI
     @addPlayer new AIPlayer(@)
+    @open = true
 
   stepTime: () ->
-    100
+    lengths = 0
+    for id, player of @players
+      lengths += player.snake.length
+    
+    130 - lengths
 
   addPlayer: (player) =>
     # give them a snake
@@ -40,7 +45,9 @@ module.exports = class Game
     zipped.n = true if newGame
     zipped.p = @paused if @paused
     zipped.e = @endGame if @endGame
-    
+    zipped.ate = @ate if @ate
+
+    @ate = null
     zipped
 
   collision: ->
@@ -60,12 +67,13 @@ module.exports = class Game
       snake = player.snake
       snake.move()
       @hitEdge snake
-      @feast snake if @hitFood snake
+      @feast snake, id if @hitFood snake
 
     # Test for endGame
     @end()
 
-  feast: (snake) ->
+  feast: (snake, id) ->
+    @ate = id
     snake.eat()
     @food.pop()
     @generateFood(1)

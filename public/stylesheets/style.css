@@ -1,6 +1,7 @@
 body {
   padding: 50px;
   font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+  background-color: #D4E4F5;
 }
 
 a {
@@ -9,11 +10,24 @@ a {
 
 .content {
   width: 900px;
+  margin-top: 55px;
 }
 
 .sidebar {
   color: white;
-  background: navy;
-  height: 600px;
+  background: rgb(4, 71, 83);
+  height: 506px;
   width: 260px;
+  padding: 20px;
+}
+
+.leaderboard {
+  color: white;
+  background: rgb(4, 71, 83);
+  padding: 20px;
+}
+
+#canvas {
+  background-color: #FFFFF3;
+  border: 3px solid #626345;
 }

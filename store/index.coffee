@@ -16,9 +16,15 @@ module.exports = new (class Store
   _schemas: 
     Player:
       pid: String
-      gameCount: Number
-      winCount: Number
-      growth: Number
+      gameCount: 
+        type: Number
+        default: 0
+      winCount: 
+        type: Number
+        default: 0
+      growth: 
+        type: Number
+        default: 0
 
   buildModels: () ->
     for name, schema of @_schemas

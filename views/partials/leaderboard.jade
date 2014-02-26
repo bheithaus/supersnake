@@ -1,0 +1,16 @@
+div.leaderboard
+  table.table
+    thead
+      tr
+        th Name
+        th games
+        th wins
+        th losses
+        th growth
+    tbody
+      tr(ng-repeat='leader in leaders')
+        td {{ leader.pid }}    
+        td {{ leader.gameCount }}
+        td {{ leader.winCount }}
+        td {{ leader.lossCount }}
+        td {{ leader.growth }}

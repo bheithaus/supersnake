@@ -1,19 +1,10 @@
-div.sidebar.pull-right(ng-controller="MainCtrl")
-  table
-    tr
-      th Total Games
-      th Wins
-      th Losses
-      th Growth
-    tr
-      td {{player.total}}
-      td {{player.wins}}
-      td {{player.losses}}
-      td {{player.growth}}
-
-  h1 {{losses}}
-
-  h4 concurrent Games
-    small 3,000
-
-  h4 and, then more content
+div.sidebar.pull-left(ng-controller="Scoreboard")
+  h4 Your Score
+  ul.list-unstyled
+    li Total Games: {{gameCount}}
+    li Wins: {{winCount}}
+    li Losses: {{lossCount}}
+    li Growth: {{growth}}
+    
+  
+  p concurrent Games: {{concurrentGames}}

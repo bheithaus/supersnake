@@ -1,18 +1,19 @@
 utils = require('lodash')
 Game = require('./game')
-store = require '../store'
+Player = require './player'
+Store = require '../store'
 
 includes = (bodyPieces, head) ->
   utils(bodyPieces).any((piece) -> piece[0] == head[0] && piece[1] == head[1])
 
 module.exports = class Controller
   constructor: (player) ->
-    @id = utils.uniqueId()
-    # create a one player game, with AI
+    @id = utils.uniqueId() 
+
+    # create a one player game with AI
     @newPracticeGame player
   
   newPracticeGame: (player) ->
-    @cyclesSinceUpdate = 0
     @game = new Game @, 50, player
     @bindEvents player
     @updateClients null, true, true
@@ -41,15 +42,23 @@ module.exports = class Controller
     @runStep() if not @game.paused
 
   updateClients: (incoming, newGame, open) ->
-    @cyclesSinceUpdate = 0
-    @updateRequired = false
     state = @game.zip incoming, newGame, open
-
-    # console.log 'newGame? ', newGame, state
-
+ 
     for id, player of @game.players
       # console.log 'update!', @game.players
       player.socket.emit 'update-client', state
+
+  updateTotalGames: (count) ->
+    for id, player of @game.players
+      player.socket.emit 'update-total-games', count
+
+  scoreClient: (player, inc) ->
+    update =
+      gameCount: player.meta.gameCount + (inc.gameCount || 0)
+      winCount: player.meta.winCount + (inc.winCount || 0)
+      growth: player.meta.growth + (inc.growth || 0)
+      
+    player.socket.emit 'score-client', update
 
   tearDownStartAnew: (id) ->
     player = @game.players[id]
@@ -97,11 +106,6 @@ module.exports = class Controller
     for key, handler of @_socketEvents
       player.socket.removeAllListeners key
 
-  updateCounter: () ->
-    @cyclesSinceUpdate++
-    if @cyclesSinceUpdate > 4
-      @updateRequired = true
-
   runStep: () =>
     @game.step()
     @close() if @game.endGame
@@ -113,9 +117,9 @@ module.exports = class Controller
 
   close: ->
     for id, player of @game.players
-      console.log player.snake.body.length
+      return if id is 'AI'
       
-      inc = 
+      inc =
         $inc: 
           gameCount: 1
           growth: player.snake.body.length - 15
@@ -123,31 +127,41 @@ module.exports = class Controller
       if typeof @game.endGame is 'string'
         inc.$inc.winCount = 1 if id isnt @game.endGame
 
-      store.Player.findOneAndUpdate { pid: id }, inc, (err, player) =>
+      @scoreClient player, inc.$inc
+      ## update client score here
+
+      Store.Player.findOneAndUpdate { pid: id }, inc, (err) =>
         return console.error err if err
-        console.log player
 
 # all current games
 controllers = {}
 
 # Class Methods
-Controller.availableGames = () ->
+Controller.availableGames = ->
   (controller for id, controller of controllers when controller.game.open and not controller.game.endGame and not controller.game.paused)
 
 Controller.remove = (id) ->
   delete controllers[id]
 
+
+Controller.updateGameCount = ->
+  # could have big problems here at scale.. over triggering this event
+  count = Object.keys(controllers).length
+  for id, controller of controllers
+    controller.updateTotalGames count
+
+
 # Handles Placing players into two player games
 Controller.joinGame = (player) ->
-  console.log 'join game', player
   available = Controller.availableGames()
 
-  console.log 'available', available
   if available.length
     # console.log 'here '
     # join game with waiting player
     available[0].join player
   else
     # create new single player game
-    controller = new Controller(player)
+    controller = new Controller player
     controllers[controller.id] = controller
+
+    Controller.updateGameCount()

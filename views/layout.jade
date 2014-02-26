@@ -6,11 +6,9 @@ html
       include Framework/head
       yield
 
-  body(ng-app="app")
+  body(ng-app="supersnake")
     include Framework/header
 
     div.content
-      include Framework/sidebar
-
       block content
-        yield
+        div(ng-view)

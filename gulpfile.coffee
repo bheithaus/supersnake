@@ -13,10 +13,14 @@ concat = includeG 'concat'
 
 
 # Paths
+client_base = './client/coffeescripts/'
 path = 
   scripts: 
     src: {
-      client: './client/coffeescripts/*.coffee'
+      client:[
+        client_base + '/**/*.coffee'
+        client_base + '*.coffee'
+      ]
       server: './**.coffee'
     }
     dest: './public/javascripts'
@@ -28,18 +32,9 @@ scripts = () ->
     .pipe(concat('index.js'))
     .pipe(gulp.dest(path.scripts.dest))
 
-# Tasks
-gulp.task 'jade', ->
-  gulp.src './views/*.jade'
-    .pipe(jade())
-    .pipe(gulp.dest('./build/minified_templates'))
-
 gulp.task 'scripts', scripts
 
-gulp.task 'watch', ->
-  gulp.watch(path.scripts.src, ['scripts'])
-
-gulp.task 'default', ['jade', 'scripts']
+gulp.task 'default', ['scripts']
 
 
 nodemon(

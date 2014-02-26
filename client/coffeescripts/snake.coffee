@@ -10,8 +10,16 @@ class Game
     @food = state.f
     @paused = state.p
 
+    @eat state.ate if state.ate
+
     if state.e
       @endGame = state.e
+
+  eat: (id) ->
+    if @id.toString() is id.toString()
+      growth = window.client.player.meta.growth
+      window.client.player.meta.growth = if growth then growth + 1 else 1
+      $(document).trigger 'score-client'
 
   updateSnakes: (updates) ->
     for id, snake of updates
