@@ -1,0 +1,43 @@
+require 'rubygems'
+require 'json'
+
+credentials = JSON.parse(File.read("credentials.json"))
+
+Vagrant.configure("2") do |config|
+  config.vm.define 'Express Test Env' do |env| end
+  config.vm.box = "ubuntu_rackspace"
+  config.vm.box_url = "http://puppet-vagrant-boxes.puppetlabs.com/ubuntu-server-12042-x64-vbox4210.box"
+  config.vm.synced_folder ".", "/vagrant", id: "vagrant-root"
+  config.vm.provider :rackspace do |rs, override|
+    rs.rackspace_region = :dfw
+    rs.username = credentials['username']
+    rs.api_key = credentials['api_key']
+    rs.flavor = /1 GB Performance/
+    rs.image = /Ubuntu/
+  end
+
+  # adding some new repos
+  config.vm.provision :shell, :path => "scripts/ubuntu-repo-manager.sh", :args => "ppa:nginx/development"
+  config.vm.provision :shell, :path => "scripts/ubuntu-repo-manager.sh", :args => "ppa:chris-lea/node.js"
+  config.vm.provision :shell, path: "scripts/add_mongodb_repo.sh"
+
+  # janky iptables
+  # config.vm.provision :shell, path: 'scripts/iptables.sh'
+
+  # Installing packages through the package manager
+  config.vm.provision :shell do |s|
+    s.path = "scripts/apt-install.sh"
+    s.args = "g++ make curl git nodejs nginx monit mongodb-10gen"
+  end
+
+  # npm install project global dependencies
+  config.vm.provision :shell, path: 'scripts/setup_npm.sh'
+
+  config.vm.provision :shell, path: 'scripts/setup_nginx.sh'
+  config.vm.provision :shell, path: 'scripts/setup_upstart.sh'
+
+  config.vm.provision :shell, path: 'scripts/run.sh'
+
+  # install project
+  config.vm.provision :shell, path: 'scripts/install_repo.sh'
+end
