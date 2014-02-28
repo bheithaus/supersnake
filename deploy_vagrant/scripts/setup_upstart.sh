@@ -1,11 +1,11 @@
 #~/bin/sh
-echo 'create upstart for nginx, mongo, and bitisland-server' 
+echo 'create upstart for nginx, mongo, and supersnake' 
 
 # nginx Upstart
 cp /vagrant/confs/nginx.conf /etc/init/nginx.conf
 
 # app specific Upstart
-cp /vagrant/confs/bitisland.conf /etc/init/bitisland.conf
+cp /vagrant/confs/supersnake.conf /etc/init/supersnake.conf
 
 # create monit rc
 # Echo create upstart mongodb

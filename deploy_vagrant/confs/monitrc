@@ -3,9 +3,9 @@ set daemon  10
 
 set logfile /var/log/monit.log
 
-check process node with pidfile /var/run/bitisland.pid
-    start program = "/sbin/start bitisland"
-    stop program  = "/sbin/stop bitisland"
+check process node with pidfile /var/run/supersnake.pid
+    start program = "/sbin/start supersnake"
+    stop program  = "/sbin/stop supersnake"
     if failed port 80 protocol HTTP
         request /
         with timeout 10 seconds
