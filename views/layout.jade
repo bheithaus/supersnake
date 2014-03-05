@@ -7,8 +7,9 @@ html
       yield
 
   body(ng-app="supersnake")
-    include Framework/header
+    div(ng-controller='AppCtrl')
+      include Framework/header
 
-    div.content
-      block content
-        div(ng-view)
+      div.content
+        block content
+          div(ng-view)

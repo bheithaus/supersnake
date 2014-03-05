@@ -1,4 +1,4 @@
-var Store = require('../store')
+var User = require('../snake/models').user
 
 /*
  * GET home page.
@@ -14,7 +14,7 @@ exports.partial = function (req, res) {
 
 
 exports.leaders = function (req, res) {
-  Store.Player.find({})
+  User.find({})
   .sort({ winCount: -1 })
   .exec(function (err, players) {
 

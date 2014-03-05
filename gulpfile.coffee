@@ -11,7 +11,6 @@ uglify = includeG 'uglify'
 gutil = includeG 'util'
 concat = includeG 'concat'
 
-
 # Paths
 client_base = './client/coffeescripts/'
 path = 

@@ -9,7 +9,7 @@ angular.module 'supersnake', [
 
 .config ($stateProvider, $urlRouterProvider, $locationProvider, $httpProvider) ->
   # re include this when implementing Authentication
-  # $httpProvider.interceptors.push 'authInterceptor'
+  $httpProvider.interceptors.push 'authInterceptor'
 
   # html location
   $locationProvider.html5Mode true
@@ -17,35 +17,30 @@ angular.module 'supersnake', [
   $urlRouterProvider.otherwise '/'
 
   $stateProvider
-    .state 'game',
+    .state 'home',
       url: '/'
+      templateUrl: 'partials/home'
+      controller: 'HomeCtrl'
+
+    .state 'game',
+      url: '/game'
       templateUrl: 'partials/game'
       controller: 'GameCtrl'
+      authenticate: true
 
     .state 'leaderboard',
       url: '/leaderboard'
       templateUrl: 'partials/leaderboard'
       controller: 'leaderboardCtrl'
 
-    # .state 'list',
-    #   url: '/entities'
-    #   templateUrl: 'partials/entity/list'
-    #   controller: 'ListCtrl'
+    .state 'login',
+      url: '/login'
+      # templateUrl: 'partials/session/login'
+      controller: 'LoginCtrl'
 
-    # .state 'show',
-    #   url: '/entities/:id'
-    #   templateUrl: 'partials/entity/show'
-    #   controller: 'ShowCtrl'
+    .state 'logout',
+      url: '/logout'
+      controller: 'LogoutCtrl'
 
-    # .state 'login',
-    #   # templateUrl: 'partials/session/login'
-    #   controller: 'LoginCtrl'
-
-    # .state 'logout',
-    #   url: '/logout'
-    #   controller: 'LogoutCtrl'
-
-
-
-.run ($rootScope, $state) ->
-  console.log 'starting angular'
+.run ($rootScope, $state, Auth) ->
+  Auth.monitor()

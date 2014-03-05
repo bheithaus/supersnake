@@ -11,7 +11,7 @@ angular.module 'supersnake.controllers'
     , (error) ->
       if not error
         $modalInstance.dismiss()
-        $state.transitionTo 'home'
+        $state.transitionTo 'game'
       else
         $scope.error = true
 

@@ -1,7 +1,7 @@
-utils = require('lodash')
-Game = require('./game')
+utils = require 'lodash'
+Game = require './game'
 Player = require './player'
-Store = require '../store'
+User = require('./models').user
 
 includes = (bodyPieces, head) ->
   utils(bodyPieces).any((piece) -> piece[0] == head[0] && piece[1] == head[1])
@@ -130,7 +130,7 @@ module.exports = class Controller
       @scoreClient player, inc.$inc
       ## update client score here
 
-      Store.Player.findOneAndUpdate { pid: id }, inc, (err) =>
+      User.findOneAndUpdate { _id: id }, inc, (err) =>
         return console.error err if err
 
 # all current games

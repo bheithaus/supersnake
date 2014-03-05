@@ -4,13 +4,15 @@ path = require 'path'
 utils = require 'lodash'
 socket = require './socket'
 routes = require './routes'
+authentication = require './snake/authentication'
+
+GLOBAL.config = 
+  JWT_Token: 'SOMETHINGSECRET'
 
 # Static File Routes
 paths =
   bower:  express.static path.join(__dirname, '/bower_components')
   public: express.static path.join(__dirname, '/public')
-
-
 
 app = express()
 
@@ -38,9 +40,15 @@ app.get '/',                  routes.index
 app.get '/partials/(*)',      routes.partial
 app.get '/api/leaders',       routes.leaders
 
+# session
+app.get  '/authentication', authentication.session
+app.post '/authentication', authentication.login
+app.del  '/authentication', authentication.logout
+
+# Register
+app.post '/register', authentication.register
 
 app.get '*',                  routes.index
-
 
 # setup server
 server = http.createServer(app)

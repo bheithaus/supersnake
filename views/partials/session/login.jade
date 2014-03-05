@@ -1,0 +1,17 @@
+div.modal-header
+  h3 Login
+  
+div.modal-body
+  div.errors {{ error }}
+    
+  form(ng-submit='login()')
+    div.form-group
+      label Username:
+      input.form-control(type='text', ng-model='user.name', name='name')
+    
+    div.form-group
+      label Password:
+      input.form-control(type='password', ng-model='user.password', name='password')
+    
+    div
+      input.btn.btn-primary(value='Log In', type='submit')

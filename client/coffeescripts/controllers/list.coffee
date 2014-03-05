@@ -1,14 +1,5 @@
 # /* Controllers */
 angular.module 'supersnake.controllers'
 
-.controller 'ListCtrl', ($scope, $http, $location, LoginModal, User) ->
-  $http.get('/api/list')
-  .success () ->
-    console.log 'ars', arguments
-    
-  # handle login modal error here
-  $scope.entities = [
-    { name: 'one' }
-    { name: 'two' }
-  ]
-
+.controller 'HomeCtrl', ($scope, $http, $location, LoginModal, User) ->
+  console.log 'welcome home'

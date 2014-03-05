@@ -1,17 +1,29 @@
 angular.module('supersnake', ['ui.router', 'ui.bootstrap', 'ngResource', 'supersnake.controllers', 'supersnake.services']).config(function($stateProvider, $urlRouterProvider, $locationProvider, $httpProvider) {
+  $httpProvider.interceptors.push('authInterceptor');
   $locationProvider.html5Mode(true);
   $urlRouterProvider.otherwise('/');
-  return $stateProvider.state('game', {
+  return $stateProvider.state('home', {
     url: '/',
+    templateUrl: 'partials/home',
+    controller: 'HomeCtrl'
+  }).state('game', {
+    url: '/game',
     templateUrl: 'partials/game',
-    controller: 'GameCtrl'
+    controller: 'GameCtrl',
+    authenticate: true
   }).state('leaderboard', {
     url: '/leaderboard',
     templateUrl: 'partials/leaderboard',
     controller: 'leaderboardCtrl'
+  }).state('login', {
+    url: '/login',
+    controller: 'LoginCtrl'
+  }).state('logout', {
+    url: '/logout',
+    controller: 'LogoutCtrl'
   });
-}).run(function($rootScope, $state) {
-  return console.log('starting angular');
+}).run(function($rootScope, $state, Auth) {
+  return Auth.monitor();
 });
 
 var Game, Snake, includes,
@@ -137,7 +149,7 @@ Snake = (function() {
 
 angular.module('supersnake.controllers', []);
 
-var $document, CIRCLE, COLORS, FONTS, PAUSE_PROMPTS,
+var $document, CIRCLE, COLORS, FONTS, PAUSE_PROMPTS, clientController,
   __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
 CIRCLE = Math.PI * 2;
@@ -159,227 +171,223 @@ COLORS = {
   players: ['black', 'blue']
 };
 
-angular.module('supersnake.controllers').controller('GameCtrl', function($scope, $http, $location, LoginModal, User) {
-  var clientController;
+angular.module('supersnake.controllers').controller('GameCtrl', function($scope, $http, $location, LoginModal, User, socket) {
   $scope.name = 'hey derr';
-  clientController = (function() {
-    function clientController(socket, player) {
-      this.socket = socket;
-      this.player = player;
-      this.state = __bind(this.state, this);
-      this.runStep = __bind(this.runStep, this);
-      this.bindKeyDown = __bind(this.bindKeyDown, this);
-      this.render = __bind(this.render, this);
-      this.canvas = $('canvas');
-      this.context = this.canvas[0].getContext('2d');
+  socket.emit('ready');
+  return socket.on('attach-client', (function(_this) {
+    return function(player) {
+      var client;
+      client = window.client = new clientController(socket, player);
+      $document.trigger('score-client');
+      socket.on('update-client', client.state);
+      socket.on('score-client', function(meta) {
+        window.client.player.meta = meta;
+        return $document.trigger('score-client');
+      });
+      return socket.on('update-total-games', function(count) {
+        window.client.concurrentGames = count;
+        return $document.trigger('update-total-games');
+      });
+    };
+  })(this));
+});
+
+clientController = (function() {
+  function clientController(socket, player) {
+    this.socket = socket;
+    this.player = player;
+    this.state = __bind(this.state, this);
+    this.runStep = __bind(this.runStep, this);
+    this.bindKeyDown = __bind(this.bindKeyDown, this);
+    this.render = __bind(this.render, this);
+    this.canvas = $('canvas');
+    this.context = this.canvas[0].getContext('2d');
+  }
+
+  clientController.prototype.newGame = function(state, incoming) {
+    this.game = new Game(50, this.player.id, state.s, state.o);
+    return this.bindKeyDown();
+  };
+
+  clientController.prototype.namespace = '.snake';
+
+  clientController.prototype.render = function() {
+    this.clear();
+    this.drawSnakes();
+    this.drawScore();
+    this.drawFood();
+    if (this.game.open) {
+      return this.drawPractice();
     }
+  };
 
-    clientController.prototype.newGame = function(state, incoming) {
-      this.game = new Game(50, this.player.id, state.s, state.o);
-      return this.bindKeyDown();
-    };
+  clientController.prototype.translate = function(pos) {
+    return 10 * pos + 5;
+  };
 
-    clientController.prototype.namespace = '.snake';
+  clientController.prototype.drawCircle = function(pos, color, head) {
+    var radius;
+    radius = head ? 6 : 5;
+    this.context.beginPath();
+    this.context.arc(this.translate(pos[0]), this.translate(pos[1]), radius, 0, CIRCLE, false);
+    this.context.fillStyle = color;
+    return this.context.fill();
+  };
 
-    clientController.prototype.render = function() {
-      this.clear();
-      this.drawSnakes();
-      this.drawScore();
-      this.drawFood();
-      if (this.game.open) {
-        return this.drawPractice();
+  clientController.prototype.clear = function() {
+    return this.context.clearRect(0, 0, 500, 500);
+  };
+
+  clientController.prototype.drawPractice = function() {
+    this.context.font = FONTS.score;
+    this.context.textAlign = "left";
+    this.context.fillStyle = 'orange';
+    return this.context.fillText('Awaiting player - in Practice Mode', 10, 10);
+  };
+
+  clientController.prototype.drawSnakes = function() {
+    var id, iterator, piece, snake, _i, _len, _ref, _ref1, _results;
+    iterator = 0;
+    _ref = this.game.snakes;
+    _results = [];
+    for (id in _ref) {
+      snake = _ref[id];
+      _ref1 = snake.body.slice(1);
+      for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+        piece = _ref1[_i];
+        this.drawCircle(piece, '#435E3B');
       }
-    };
+      this.drawCircle(snake.body[0], COLORS.players[iterator], true);
+      _results.push(iterator++);
+    }
+    return _results;
+  };
 
-    clientController.prototype.translate = function(pos) {
-      return 10 * pos + 5;
-    };
+  clientController.prototype.drawFood = function() {
+    var food, _i, _len, _ref, _results;
+    _ref = this.game.food;
+    _results = [];
+    for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+      food = _ref[_i];
+      _results.push(this.drawCircle(food, 'red'));
+    }
+    return _results;
+  };
 
-    clientController.prototype.drawCircle = function(pos, color, head) {
-      var radius;
-      radius = head ? 6 : 5;
-      this.context.beginPath();
-      this.context.arc(this.translate(pos[0]), this.translate(pos[1]), radius, 0, CIRCLE, false);
+  clientController.prototype.drawScore = function() {
+    var id, iterator, snake, _ref, _results;
+    this.context.font = FONTS.score;
+    this.context.textAlign = "left";
+    iterator = 0;
+    _ref = this.game.snakes;
+    _results = [];
+    for (id in _ref) {
+      snake = _ref[id];
+      this.context.fillStyle = COLORS.players[iterator];
+      this.context.fillText("Score: " + snake.body.length, 435, 15 + (15 * iterator));
+      _results.push(iterator++);
+    }
+    return _results;
+  };
+
+  clientController.prototype.drawPause = function() {
+    return this.drawPrompt(PAUSE_PROMPTS[(this.game.paused === this.player.id ? 'self' : 'other')], "blue", true);
+  };
+
+  clientController.prototype.incomingPlayer = function(state) {
+    var a, dir, incoming;
+    this.started = null;
+    a = 0;
+    dir = 1;
+    incoming = (function(_this) {
+      return function() {
+        if (_this.started) {
+          return console.log('starting');
+        }
+        a += dir * 0.05;
+        dir = a >= 1 ? -1 : a <= 0 ? 1 : dir;
+        _this.drawPrompt('Joining new Human vs. Human game', COLORS.background);
+        _this.drawPrompt('Joining new Human vs. Human game', 'rgba(0, 20, 200, ' + a + ')');
+        return setTimeout(incoming, 60);
+      };
+    })(this);
+    return incoming();
+  };
+
+  clientController.prototype.drawPrompt = function(text, color, pause) {
+    var x, y;
+    x = y = this.game.boardSize * 10 / 2;
+    if (pause) {
+      y = 100;
+    }
+    this.context.fillRect('black', x, y, 800, 200);
+    this.context.font = FONTS.prompt;
+    this.context.textAlign = "center";
+    if (color) {
       this.context.fillStyle = color;
-      return this.context.fill();
-    };
+    }
+    return this.context.fillText(text, x, y);
+  };
 
-    clientController.prototype.clear = function() {
-      return this.context.clearRect(0, 0, 500, 500);
-    };
-
-    clientController.prototype.drawPractice = function() {
-      this.context.font = FONTS.score;
-      this.context.textAlign = "left";
-      this.context.fillStyle = 'orange';
-      return this.context.fillText('Awaiting player - in Practice Mode', 10, 10);
-    };
-
-    clientController.prototype.drawSnakes = function() {
-      var id, iterator, piece, snake, _i, _len, _ref, _ref1, _results;
-      iterator = 0;
-      _ref = this.game.snakes;
-      _results = [];
-      for (id in _ref) {
-        snake = _ref[id];
-        _ref1 = snake.body.slice(1);
-        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-          piece = _ref1[_i];
-          this.drawCircle(piece, '#435E3B');
+  clientController.prototype.bindKeyDown = function() {
+    $document.off(this.namespace);
+    return $document.on('keydown' + this.namespace, (function(_this) {
+      return function(event) {
+        var code;
+        code = event.keyCode;
+        if ((36 < code && code < 41) || code === 80 || code === 13) {
+          event.preventDefault();
+          event.stopPropagation();
+          return _this.socket.emit('keypress', code, _this.player.id);
         }
-        this.drawCircle(snake.body[0], COLORS.players[iterator], true);
-        _results.push(iterator++);
-      }
-      return _results;
-    };
-
-    clientController.prototype.drawFood = function() {
-      var food, _i, _len, _ref, _results;
-      _ref = this.game.food;
-      _results = [];
-      for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-        food = _ref[_i];
-        _results.push(this.drawCircle(food, 'red'));
-      }
-      return _results;
-    };
-
-    clientController.prototype.drawScore = function() {
-      var id, iterator, snake, _ref, _results;
-      this.context.font = FONTS.score;
-      this.context.textAlign = "left";
-      iterator = 0;
-      _ref = this.game.snakes;
-      _results = [];
-      for (id in _ref) {
-        snake = _ref[id];
-        this.context.fillStyle = COLORS.players[iterator];
-        this.context.fillText("Score: " + snake.body.length, 435, 15 + (15 * iterator));
-        _results.push(iterator++);
-      }
-      return _results;
-    };
-
-    clientController.prototype.drawPause = function() {
-      return this.drawPrompt(PAUSE_PROMPTS[(this.game.paused === this.player.id ? 'self' : 'other')], "blue", true);
-    };
-
-    clientController.prototype.incomingPlayer = function(state) {
-      var a, dir, incoming;
-      this.started = null;
-      a = 0;
-      dir = 1;
-      incoming = (function(_this) {
-        return function() {
-          if (_this.started) {
-            return console.log('starting');
-          }
-          a += dir * 0.05;
-          dir = a >= 1 ? -1 : a <= 0 ? 1 : dir;
-          _this.drawPrompt('Joining new Human vs. Human game', COLORS.background);
-          _this.drawPrompt('Joining new Human vs. Human game', 'rgba(0, 20, 200, ' + a + ')');
-          return setTimeout(incoming, 60);
-        };
-      })(this);
-      return incoming();
-    };
-
-    clientController.prototype.drawPrompt = function(text, color, pause) {
-      var x, y;
-      x = y = this.game.boardSize * 10 / 2;
-      if (pause) {
-        y = 100;
-      }
-      this.context.fillRect('black', x, y, 800, 200);
-      this.context.font = FONTS.prompt;
-      this.context.textAlign = "center";
-      if (color) {
-        this.context.fillStyle = color;
-      }
-      return this.context.fillText(text, x, y);
-    };
-
-    clientController.prototype.bindKeyDown = function() {
-      $document.off(this.namespace);
-      return $document.on('keydown' + this.namespace, (function(_this) {
-        return function(event) {
-          var code;
-          code = event.keyCode;
-          if ((36 < code && code < 41) || code === 80 || code === 13) {
-            event.preventDefault();
-            event.stopPropagation();
-            return _this.socket.emit('keypress', code, _this.player.id);
-          }
-        };
-      })(this));
-    };
-
-    clientController.prototype.runStep = function(state) {
-      var loser, prompt;
-      this.game.update(state);
-      if (!this.started) {
-        this.started = true;
-      }
-      if (!this.game.endGame) {
-        if (this.game.paused) {
-          return this.drawPause();
-        }
-        return this.render();
-      } else {
-        this.render();
-        loser = this.game.endGame;
-        prompt = (function() {
-          switch (loser) {
-            case -2:
-              return 'Opponent Quit!';
-            case -1:
-              return "Tie game";
-            case this.player.id:
-              return "You Lost";
-            default:
-              return "You Won";
-          }
-        }).call(this);
-        this.drawPrompt(prompt + "! >--< Press Enter.", "red");
-        return this.game.endGame = null;
-      }
-    };
-
-    clientController.prototype.state = function(state) {
-      if (state.n) {
-        this.newGame(state);
-      }
-      if (state.i) {
-        return this.incomingPlayer(state);
-      }
-      return this.runStep(state);
-    };
-
-    return clientController;
-
-  })();
-  return $document.ready(function() {
-    var client, socket;
-    client = null;
-    socket = io.connect(window.location.origin);
-    socket.emit('ready');
-    return socket.on('attach-client', (function(_this) {
-      return function(player) {
-        client = window.client = new clientController(socket, player);
-        $document.trigger('score-client');
-        socket.on('update-client', client.state);
-        socket.on('score-client', function(meta) {
-          window.client.player.meta = meta;
-          return $document.trigger('score-client');
-        });
-        return socket.on('update-total-games', function(count) {
-          window.client.concurrentGames = count;
-          return $document.trigger('update-total-games');
-        });
       };
     })(this));
-  });
-});
+  };
+
+  clientController.prototype.runStep = function(state) {
+    var loser, prompt;
+    this.game.update(state);
+    if (!this.started) {
+      this.started = true;
+    }
+    if (!this.game.endGame) {
+      if (this.game.paused) {
+        return this.drawPause();
+      }
+      return this.render();
+    } else {
+      this.render();
+      loser = this.game.endGame;
+      prompt = (function() {
+        switch (loser) {
+          case -2:
+            return 'Opponent Quit!';
+          case -1:
+            return "Tie game";
+          case this.player.id:
+            return "You Lost";
+          default:
+            return "You Won";
+        }
+      }).call(this);
+      this.drawPrompt(prompt + "! >--< Press Enter.", "red");
+      return this.game.endGame = null;
+    }
+  };
+
+  clientController.prototype.state = function(state) {
+    if (state.n) {
+      this.newGame(state);
+    }
+    if (state.i) {
+      return this.incomingPlayer(state);
+    }
+    return this.runStep(state);
+  };
+
+  return clientController;
+
+})();
 
 angular.module('supersnake.controllers').controller('leaderboardCtrl', function($scope, $http, $location, LoginModal, User) {
   return $http.get('/api/leaders').success(function(leaders) {
@@ -393,17 +401,8 @@ angular.module('supersnake.controllers').controller('leaderboardCtrl', function(
   });
 });
 
-angular.module('supersnake.controllers').controller('ListCtrl', function($scope, $http, $location, LoginModal, User) {
-  $http.get('/api/list').success(function() {
-    return console.log('ars', arguments);
-  });
-  return $scope.entities = [
-    {
-      name: 'one'
-    }, {
-      name: 'two'
-    }
-  ];
+angular.module('supersnake.controllers').controller('HomeCtrl', function($scope, $http, $location, LoginModal, User) {
+  return console.log('welcome home');
 });
 
 angular.module('supersnake.controllers').controller('LoginInstanceCtrl', function($scope, $modalInstance, Auth, $state) {
@@ -415,7 +414,7 @@ angular.module('supersnake.controllers').controller('LoginInstanceCtrl', functio
     }, function(error) {
       if (!error) {
         $modalInstance.dismiss();
-        return $state.transitionTo('home');
+        return $state.transitionTo('game');
       } else {
         return $scope.error = true;
       }
@@ -457,6 +456,19 @@ angular.module('supersnake.controllers').controller('RegisterInstanceCtrl', func
   };
 }).controller('LoginCtrl', function(LoginModal) {
   return LoginModal.open();
+});
+
+angular.module('supersnake.controllers').controller('AppCtrl', function($scope, LoginModal, RegisterModal, UserSession, Auth, $state) {
+  $scope.register = RegisterModal.open;
+  $scope.login = LoginModal.open;
+  $scope.loggedIn = function() {
+    return UserSession.loggedIn();
+  };
+  return $scope.logout = function() {
+    return Auth.logout(function() {
+      return $state.transitionTo('home');
+    });
+  };
 });
 
 angular.module('supersnake.controllers').controller('Scoreboard', function($scope, score) {
