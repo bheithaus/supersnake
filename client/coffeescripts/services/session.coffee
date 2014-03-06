@@ -25,7 +25,7 @@ angular.module 'supersnake.services'
     loggedIn: ->
       current
 
-.factory 'Auth', ($rootScope, Session, UserSession, $state, LoginModal, User) ->
+.factory 'Auth', ($rootScope, Session, UserSession, $state, LoginModal, User, socket) ->
   login: (provider, user, callback) ->
     if typeof callback isnt 'function'
       callback = angular.noop
@@ -62,8 +62,11 @@ angular.module 'supersnake.services'
       callback()
 
   monitor: () ->
-    $rootScope.$on '$stateChangeStart', (event, current, prev) ->
-      if current.authenticate and not UserSession.loggedIn()
+    $rootScope.$on '$stateChangeStart', (event, toState, toParams, fromState, fromParams) ->
+      if fromState.name is 'game'
+        socket.emit 'leavegame'
+
+      if toState.authenticate and not UserSession.loggedIn()
         # User isn’t authenticated
         $state.transitionTo 'home'
         LoginModal.open()

@@ -554,7 +554,7 @@ angular.module('supersnake.services').factory('Session', function($resource) {
       return current;
     }
   };
-}).factory('Auth', function($rootScope, Session, UserSession, $state, LoginModal, User) {
+}).factory('Auth', function($rootScope, Session, UserSession, $state, LoginModal, User, socket) {
   return {
     login: function(provider, user, callback) {
       if (typeof callback !== 'function') {
@@ -596,8 +596,11 @@ angular.module('supersnake.services').factory('Session', function($resource) {
       });
     },
     monitor: function() {
-      return $rootScope.$on('$stateChangeStart', function(event, current, prev) {
-        if (current.authenticate && !UserSession.loggedIn()) {
+      return $rootScope.$on('$stateChangeStart', function(event, toState, toParams, fromState, fromParams) {
+        if (fromState.name === 'game') {
+          socket.emit('leavegame');
+        }
+        if (toState.authenticate && !UserSession.loggedIn()) {
           $state.transitionTo('home');
           LoginModal.open();
           return event.preventDefault();

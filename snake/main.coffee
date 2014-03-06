@@ -60,17 +60,18 @@ module.exports = class Controller
       
     player.socket.emit 'score-client', update
 
-  tearDownStartAnew: (id) ->
-    player = @game.players[id]
-    if player
-      @unbindEvents player
+  tearDownStartAnew: (id, disconnect) ->
+    if id
+      player = @game.players[id]
+      if player
+        @unbindEvents player
 
-    delete @game.players[id]
+      delete @game.players[id]
 
-    if not (Object.keys @game.players)[0]?length
+    if @game.open or not (Object.keys @game.players)[0]?length
       Controller.remove @id
 
-    Controller.joinGame player
+    Controller.joinGame player unless disconnect
 
   # Some special treatment going on to namespace
   # and bind these to @
@@ -78,10 +79,23 @@ module.exports = class Controller
     disconnect: (caller) ->
       () ->
         (() ->
+          console.log 'disconnect Recieved', @
           clearTimeout @timeout
           @game.end true
-          @updateClients())
-
+          @updateClients()
+          @tearDownStartAnew(null, true)
+        )
+        .apply(caller, arguments)
+   
+    leavegame: (caller) ->
+      () ->
+        (() ->
+          console.log 'keyword Recieved'
+          clearTimeout @timeout
+          @game.end true
+          @updateClients()
+          @tearDownStartAnew(null, true)
+        )
         .apply(caller, arguments)
 
     keypress:  (caller) ->
@@ -90,6 +104,7 @@ module.exports = class Controller
           if @game.endGame
             return @tearDownStartAnew(id) if code is 13
             return 
+
 
           if 36 < code < 41
             @turn code, id
