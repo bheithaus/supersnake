@@ -19,6 +19,12 @@ a {
   height: 506px;
   width: 260px;
   padding: 20px;
+  position: relative;
+}
+
+.sidebar .ai-algorithm {
+  position: absolute;
+  bottom: 20px;
 }
 
 .leaderboard {

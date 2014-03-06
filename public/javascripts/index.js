@@ -172,14 +172,23 @@ COLORS = {
 };
 
 angular.module('supersnake.controllers').controller('GameCtrl', function($scope, $http, $location, LoginModal, User, socket) {
-  $scope.name = 'hey derr';
   socket.emit('ready');
+  $scope.chooseAlgorithm = function(selected) {
+    $scope.algorithm = selected;
+    return socket.emit('chooseAlgorithm', window.client.player.id, selected);
+  };
   return socket.on('attach-client', (function(_this) {
     return function(player) {
       var client;
       client = window.client = new clientController(socket, player);
       $document.trigger('score-client');
       socket.on('update-client', client.state);
+      socket.on('ai-algorithms', function(algorithms) {
+        return $scope.$apply(function() {
+          $scope.algorithm = algorithms.current;
+          return $scope.algorithms = algorithms.options;
+        });
+      });
       socket.on('score-client', function(meta) {
         window.client.player.meta = meta;
         return $document.trigger('score-client');
@@ -392,7 +401,6 @@ clientController = (function() {
 angular.module('supersnake.controllers').controller('leaderboardCtrl', function($scope, $http, $location, LoginModal, User) {
   return $http.get('/api/leaders').success(function(leaders) {
     var leader, _i, _len;
-    console.log(leaders);
     for (_i = 0, _len = leaders.length; _i < _len; _i++) {
       leader = leaders[_i];
       leader.lossCount = leader.gameCount - leader.winCount;
@@ -534,10 +542,17 @@ angular.module('supersnake.services').factory('Session', function($resource) {
   return $resource('/authentication');
 }).factory('User', function($resource) {
   return $resource('/register');
-}).service('socket', function(UserSession) {
-  return io.connect(window.location.origin, {
+}).service('socket', function($rootScope, UserSession) {
+  var socket;
+  socket = io.connect(window.location.origin, {
     query: 'token=' + UserSession.loggedIn()
   });
+  $rootScope.$watch(UserSession.loggedIn, function(token) {
+    return socket = io.connect(window.location.origin, {
+      query: 'token=' + token
+    });
+  });
+  return socket;
 }).service('UserSession', function($window) {
   var current, session;
   current = $window.sessionStorage.token;
@@ -565,7 +580,6 @@ angular.module('supersnake.services').factory('Session', function($resource) {
         name: user.name,
         password: user.password
       }, function(data) {
-        console.log(data);
         if (!data.error) {
           UserSession.login(data);
           return callback();

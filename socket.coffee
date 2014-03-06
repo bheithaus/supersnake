@@ -4,11 +4,18 @@ socketioJwt = require 'socketio-jwt'
 Player = require './snake/player'
 User = require('./snake/models').user
 
-module.exports = 
+sockets = null
+
+exports = module.exports =
+  sockets: ->
+    sockets
+
   init: (server) ->
     # Socket join flow
     io = io.listen server
     io.set 'log level', 1
+
+    sockets = io.sockets
 
     io.set 'authorization', socketioJwt.authorize 
       secret: config.JWT_Token,
@@ -22,9 +29,7 @@ module.exports =
       socket.on 'ready', (data) ->
         id = socket.handshake.decoded_token.id
       
-        console.log 'incoming connect' 
-
-        User.findOne id, (err, meta) =>
+        User.findOne { _id: id }, (err, meta) =>
           player = 
             meta: meta
             id: id

@@ -6,5 +6,16 @@ div.sidebar.pull-left(ng-controller="Scoreboard")
     li Losses: {{lossCount}}
     li Growth: {{growth}}
     
-  
   p concurrent Games: {{concurrentGames}}
+
+  div.ai-algorithm
+    h5 Choose your opponent
+
+    div.dropup
+      a#ai_select.dropdown-toggle(data-toggle='dropdown')
+        | {{ algorithm }}
+        span.caret
+
+      ul.dropdown-menu(role='menu', aria-labelledby='ai_type')
+        li(role='presentation', ng-repeat='algorithm in algorithms')
+          a(role='menuitem', href='#', ng-click='chooseAlgorithm(algorithm)') {{ algorithm }}

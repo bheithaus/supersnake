@@ -51,8 +51,6 @@ loginUser = (user, res) ->
 
   token = jwt.sign profile, config.JWT_Token, { expiresInMinutes: 60*5 }
 
-  console.log token
-
   res.json 
     token: token
 
@@ -75,11 +73,7 @@ module.exports =
     res.json req.user
 
   login: (req, res, next) ->
-    console.log req.body
-
-
     User.findOne { name: req.body.name }, (err, user) -> 
-      console.log user
       if err or not user
         return res.json 400, { error: 'name / password dont match' }
     

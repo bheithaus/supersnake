@@ -5,7 +5,6 @@ angular.module 'supersnake.controllers'
   # handle login modal error here
   $http.get '/api/leaders'
   .success (leaders) ->
-    console.log leaders
     for leader in leaders
       leader.lossCount = leader.gameCount - leader.winCount
     

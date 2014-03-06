@@ -20,6 +20,10 @@ UserSchema = new Schema
     type: String
     required: true
 
+  opponent_preference:
+    type: String
+    default: 'AStarFinder'
+
   gameCount: 
     type: Number
     default: 0

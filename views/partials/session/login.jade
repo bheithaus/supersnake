@@ -2,7 +2,7 @@ div.modal-header
   h3 Login
   
 div.modal-body
-  div.errors {{ error }}
+  div.errors(ng-show='error') Incorrect name / password
     
   form(ng-submit='login()')
     div.form-group

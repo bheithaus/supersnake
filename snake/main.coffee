@@ -1,6 +1,9 @@
 utils = require 'lodash'
 Game = require './game'
 Player = require './player'
+AIPlayer = require './ai'
+
+sockets = null
 User = require('./models').user
 
 includes = (bodyPieces, head) ->
@@ -15,9 +18,15 @@ module.exports = class Controller
   
   newPracticeGame: (player) ->
     @game = new Game @, 50, player
+    @aiAlgorithm(player)
     @bindEvents player
     @updateClients null, true, true
     @runStep()
+
+  aiAlgorithm: (player) ->
+    player.socket.emit 'ai-algorithms', 
+      current: @game.players.AI.algorithm
+      options: AIPlayer.algorithms
 
   # human has arrived, so create a new game with two players
   join: (human) =>
@@ -48,10 +57,6 @@ module.exports = class Controller
       # console.log 'update!', @game.players
       player.socket.emit 'update-client', state
 
-  updateTotalGames: (count) ->
-    for id, player of @game.players
-      player.socket.emit 'update-total-games', count
-
   scoreClient: (player, inc) ->
     update =
       gameCount: player.meta.gameCount + (inc.gameCount || 0)
@@ -79,7 +84,6 @@ module.exports = class Controller
     disconnect: (caller) ->
       () ->
         (() ->
-          console.log 'disconnect Recieved', @
           clearTimeout @timeout
           @game.end true
           @updateClients()
@@ -90,11 +94,21 @@ module.exports = class Controller
     leavegame: (caller) ->
       () ->
         (() ->
-          console.log 'keyword Recieved'
           clearTimeout @timeout
           @game.end true
           @updateClients()
           @tearDownStartAnew(null, true)
+        )
+        .apply(caller, arguments)
+
+    chooseAlgorithm: (caller) ->
+      () ->
+        ((id, algorithm) ->
+          # save to players Mongo Record
+          User.findOneAndUpdate { _id: id }, { opponent_preference: algorithm }, (error, user) =>
+            console.error error if error
+
+            @game.players.AI.algorithm = algorithm
         )
         .apply(caller, arguments)
 
@@ -158,12 +172,17 @@ Controller.availableGames = ->
 Controller.remove = (id) ->
   delete controllers[id]
 
-
 Controller.updateGameCount = ->
   # could have big problems here at scale.. over triggering this event
   count = Object.keys(controllers).length
-  for id, controller of controllers
-    controller.updateTotalGames count
+
+
+  # wth! :p
+  sockets = require('../socket').sockets() if not sockets
+  sockets.emit 'update-total-games', count
+
+  # for id, controller of controllers
+  #   controller.updateTotalGames count
 
 
 # Handles Placing players into two player games
@@ -179,4 +198,5 @@ Controller.joinGame = (player) ->
     controller = new Controller player
     controllers[controller.id] = controller
 
-    Controller.updateGameCount()
+  #update game count
+  Controller.updateGameCount()

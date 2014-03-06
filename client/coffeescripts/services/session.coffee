@@ -7,8 +7,13 @@ angular.module 'supersnake.services'
 .factory 'User', ($resource) ->
   $resource '/register'
 
-.service 'socket', (UserSession) ->
-  io.connect window.location.origin, { query: 'token=' + UserSession.loggedIn() }
+.service 'socket', ($rootScope, UserSession) ->
+  socket = io.connect window.location.origin, { query: 'token=' + UserSession.loggedIn() }
+
+  $rootScope.$watch UserSession.loggedIn, (token) ->
+    socket = io.connect window.location.origin, { query: 'token=' + token }
+
+  socket
 
 .service 'UserSession', ($window) ->
   current = $window.sessionStorage.token
@@ -35,7 +40,6 @@ angular.module 'supersnake.services'
       name: user.name
       password: user.password
     , (data) ->
-      console.log data
       if not data.error
         # success
         UserSession.login data

@@ -21,10 +21,12 @@ COLORS =
 angular.module 'supersnake.controllers'
 
 .controller 'GameCtrl', ($scope, $http, $location, LoginModal, User, socket) ->
-  # handle login modal error here
-  $scope.name = 'hey derr'
-
   socket.emit 'ready'
+
+  # choose a new AI algorithm
+  $scope.chooseAlgorithm = (selected) ->
+    $scope.algorithm = selected
+    socket.emit 'chooseAlgorithm', window.client.player.id, selected
 
   # On joining
   socket.on 'attach-client', (player) =>
@@ -34,6 +36,11 @@ angular.module 'supersnake.controllers'
     $document.trigger 'score-client'
     
     socket.on 'update-client', client.state
+
+    socket.on 'ai-algorithms', (algorithms) ->
+      $scope.$apply ->
+        $scope.algorithm = algorithms.current
+        $scope.algorithms = algorithms.options
 
     socket.on 'score-client', (meta) ->
       window.client.player.meta = meta
