@@ -2,7 +2,7 @@ div.modal-header
   h3 Sign Up
   
 div.modal-body
-  form(ng-submit='register()')
+  form(ng-submit='register()', saved-form, form-data='user')
     div.form-group
       label Username:
       div {{name_error}}

@@ -2,9 +2,10 @@ angular.module 'supersnake', [
   'ui.router'
   'ui.bootstrap'
   'ngResource'
+  'ngAnimate'
   'supersnake.controllers'
   'supersnake.services'
-  # 'supersnake.directives'
+  'supersnake.directives'
 ]
 
 .config ($stateProvider, $urlRouterProvider, $locationProvider, $httpProvider) ->

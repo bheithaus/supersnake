@@ -6,13 +6,17 @@
     "**/*.txt"
   ],
   "dependencies": {
-    "angular": "~1.2.13",
+    "angular": "~1.2.15",
     "angular-resource": "~1.2.13",
     "angular-ui-router": "0.2.8-bowratic-tedium",
     "bootstrap": "~3.1.1",
     "jquery": "~2.1.0",
     "lodash": "~2.4.1",
-    "angular-bootstrap": "~0.10.0"
+    "angular-bootstrap": "~0.10.0",
+    "angular-animate": "~1.2.14"
   },
-  "devDependencies": {}
+  "devDependencies": {},
+  "resolutions": {
+    "angular": "1.2.15-build.2387+sha.46bd6dc"
+  }
 }

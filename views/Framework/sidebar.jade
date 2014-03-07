@@ -9,11 +9,12 @@ div.sidebar.pull-left(ng-controller="Scoreboard")
   p concurrent Games: {{concurrentGames}}
 
   div.ai-algorithm
-    h5 Choose your opponent
+    h5 AI Algorithm
+      span(on-hover, prompt='?')
 
-    div.dropup
-      a#ai_select.dropdown-toggle(data-toggle='dropdown')
-        | {{ algorithm }}
+    div.dropdown
+      a#ai_select.dropdown-toggle.btn.btn-default(data-toggle='dropdown')
+        | {{ algorithm }} 
         span.caret
 
       ul.dropdown-menu(role='menu', aria-labelledby='ai_type')

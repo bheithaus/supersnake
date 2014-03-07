@@ -4,7 +4,7 @@ div.modal-header
 div.modal-body
   div.errors(ng-show='error') Incorrect name / password
     
-  form(ng-submit='login()')
+  form#login(ng-submit='login()', saved-form, form-data='user')
     div.form-group
       label Username:
       input.form-control(type='text', ng-model='user.name', name='name')

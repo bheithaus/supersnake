@@ -18,6 +18,5 @@ angular.module 'supersnake.controllers'
   $scope.cancel = () ->
     $modalInstance.dismiss('cancel')
 
-
 .controller 'LoginCtrl', (LoginModal) ->  
   LoginModal.open()

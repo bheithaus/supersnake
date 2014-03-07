@@ -21,6 +21,7 @@ COLORS =
 angular.module 'supersnake.controllers'
 
 .controller 'GameCtrl', ($scope, $http, $location, LoginModal, User, socket) ->
+  socket = socket.get()
   socket.emit 'ready'
 
   # choose a new AI algorithm

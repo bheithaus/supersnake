@@ -1,4 +1,4 @@
-angular.module('supersnake', ['ui.router', 'ui.bootstrap', 'ngResource', 'supersnake.controllers', 'supersnake.services']).config(function($stateProvider, $urlRouterProvider, $locationProvider, $httpProvider) {
+angular.module('supersnake', ['ui.router', 'ui.bootstrap', 'ngResource', 'ngAnimate', 'supersnake.controllers', 'supersnake.services', 'supersnake.directives']).config(function($stateProvider, $urlRouterProvider, $locationProvider, $httpProvider) {
   $httpProvider.interceptors.push('authInterceptor');
   $locationProvider.html5Mode(true);
   $urlRouterProvider.otherwise('/');
@@ -24,6 +24,81 @@ angular.module('supersnake', ['ui.router', 'ui.bootstrap', 'ngResource', 'supers
   });
 }).run(function($rootScope, $state, Auth) {
   return Auth.monitor();
+});
+
+angular.module('supersnake.directives', []).directive('savedForm', function($timeout) {
+  return {
+    scope: {
+      formData: '='
+    },
+    link: function($scope, element, attrs) {
+      return $timeout(function() {
+        var input, inputs, type, _i, _len;
+        inputs = element.find('input');
+        for (_i = 0, _len = inputs.length; _i < _len; _i++) {
+          input = inputs[_i];
+          input = angular.element(input);
+          type = input.attr('type');
+          if (type === 'text' || type === 'password') {
+            $scope.formData[input.attr('name')] = input.val();
+          }
+        }
+        return $scope.$apply();
+      }, 100);
+    }
+  };
+}).directive('onHover', function($timeout, $parse) {
+  return {
+    restrict: 'A',
+    templateUrl: 'partials/directives/onhover',
+    link: function($scope, element, attrs) {
+      var timeoutID;
+      $scope.prompt = attrs.prompt;
+      $scope.template = attrs.onHover;
+      timeoutID = null;
+      $scope.popped = null;
+      $scope.active = {
+        outer: null,
+        inner: null
+      };
+      element.on('mouseover', function() {
+        return $scope.$apply(function() {
+          return $scope.enter('outer');
+        });
+      });
+      element.on('mouseleave', function() {
+        return $scope.$apply(function() {
+          return $scope.leave('outer');
+        });
+      });
+      $scope.enter = function(which) {
+        $scope.active[which] = true;
+        return $scope.popped = true;
+      };
+      $scope.leave = function(which) {
+        if ($scope.active[which]) {
+          $scope.active[which] = false;
+        }
+        return $scope.hide();
+      };
+      $scope.hide = function() {
+        $timeout.cancel(timeoutID);
+        return timeoutID = $timeout((function() {
+          return $scope.popped = $scope.active.outer || $scope.active.inner ? true : false;
+        }), 500);
+      };
+      return $scope.show = function() {
+        return $scope.popped = true;
+      };
+    }
+  };
+}).directive('popoverContent', function() {
+  return {
+    restrict: 'A',
+    templateUrl: function(notsurewhatthisis, attrs) {
+      return "partials/" + attrs.popoverContent;
+    }
+  };
 });
 
 var Game, Snake, includes,
@@ -172,6 +247,7 @@ COLORS = {
 };
 
 angular.module('supersnake.controllers').controller('GameCtrl', function($scope, $http, $location, LoginModal, User, socket) {
+  socket = socket.get();
   socket.emit('ready');
   $scope.chooseAlgorithm = function(selected) {
     $scope.algorithm = selected;
@@ -542,17 +618,31 @@ angular.module('supersnake.services').factory('Session', function($resource) {
   return $resource('/authentication');
 }).factory('User', function($resource) {
   return $resource('/register');
-}).service('socket', function($rootScope, UserSession) {
+}).service('socket', function($rootScope, UserSession, $state) {
   var socket;
-  socket = io.connect(window.location.origin, {
+  socket = UserSession.loggedIn() ? io.connect(window.location.origin, {
     query: 'token=' + UserSession.loggedIn()
-  });
+  }) : null;
+  if (socket) {
+    socket.on('error', function(error) {
+      console.error('Socket.IO error : ', error);
+      UserSession.logout();
+      return $state.transitionTo('home');
+    });
+  }
   $rootScope.$watch(UserSession.loggedIn, function(token) {
+    if (!token) {
+      return;
+    }
     return socket = io.connect(window.location.origin, {
       query: 'token=' + token
     });
   });
-  return socket;
+  return {
+    get: function() {
+      return socket;
+    }
+  };
 }).service('UserSession', function($window) {
   var current, session;
   current = $window.sessionStorage.token;
@@ -606,13 +696,16 @@ angular.module('supersnake.services').factory('Session', function($resource) {
       }
       return Session.remove(function() {
         UserSession.logout();
+        if (socket.get() && $state.current.name === 'game') {
+          socket.get().emit('leavegame');
+        }
         return callback();
       });
     },
     monitor: function() {
       return $rootScope.$on('$stateChangeStart', function(event, toState, toParams, fromState, fromParams) {
         if (fromState.name === 'game') {
-          socket.emit('leavegame');
+          socket.get().emit('leavegame');
         }
         if (toState.authenticate && !UserSession.loggedIn()) {
           $state.transitionTo('home');

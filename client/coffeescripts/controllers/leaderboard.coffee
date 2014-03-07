@@ -9,4 +9,3 @@ angular.module 'supersnake.controllers'
       leader.lossCount = leader.gameCount - leader.winCount
     
     $scope.leaders = leaders
-

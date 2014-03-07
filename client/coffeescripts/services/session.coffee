@@ -7,13 +7,26 @@ angular.module 'supersnake.services'
 .factory 'User', ($resource) ->
   $resource '/register'
 
-.service 'socket', ($rootScope, UserSession) ->
-  socket = io.connect window.location.origin, { query: 'token=' + UserSession.loggedIn() }
+.service 'socket', ($rootScope, UserSession, $state) ->
+  # if logged in, send connection attempt, else dont
+  socket = if UserSession.loggedIn()
+  then io.connect window.location.origin, { query: 'token=' + UserSession.loggedIn() }
+  else null
 
+  # if Connection is unauthorized, redirect to home
+  if socket
+    socket.on 'error', (error) ->
+      console.error 'Socket.IO error : ', error
+      UserSession.logout()
+      $state.transitionTo 'home'
+
+  # after login, do connect
   $rootScope.$watch UserSession.loggedIn, (token) ->
+    return unless token
     socket = io.connect window.location.origin, { query: 'token=' + token }
 
-  socket
+  get: ->
+    socket
 
 .service 'UserSession', ($window) ->
   current = $window.sessionStorage.token
@@ -63,12 +76,15 @@ angular.module 'supersnake.services'
 
     Session.remove () ->
       UserSession.logout()
+      if socket.get() and $state.current.name is 'game'
+        socket.get().emit 'leavegame'
+
       callback()
 
   monitor: () ->
     $rootScope.$on '$stateChangeStart', (event, toState, toParams, fromState, fromParams) ->
       if fromState.name is 'game'
-        socket.emit 'leavegame'
+        socket.get().emit 'leavegame'
 
       if toState.authenticate and not UserSession.loggedIn()
         # User isn’t authenticated
