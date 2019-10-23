@@ -24,7 +24,7 @@
     "socket.io": "~0.9.16",
     "lodash": "~2.4.1",
     "pathfinding": "~0.4.5",
-    "mongoose": "~3.8.7",
+    "mongoose": "~5.7.6",
     "async": "~0.2.10",
     "jsonwebtoken": "~0.1.0",
     "bcrypt": "~0.7.7",
